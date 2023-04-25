@@ -1,0 +1,412 @@
+
+export interface Tree {
+  public toString(): String;
+}
+
+export class Form extends Tree {
+  public form: String;
+  public args: List<Tree>;
+
+  public constructor(form_: String, args_: List<Tree>) {
+    form = form_;
+    args = args_;
+  }
+
+  public toString(): String {
+    var join = args.join(" ", fn(s: Tree) {
+      return s.toString();
+    });
+    return "(${form}: ${join})";
+  }
+}
+
+export class Ident extends Tree {
+  public repr: String;
+
+  public constructor(repr_: String) {
+    repr = repr_;
+  }
+
+  public toString(): String {
+    return repr;
+  }
+}
+
+export class Number extends Tree {
+  public repr: Int;
+
+  public constructor(repr_: Int) {
+    repr = repr_;
+  }
+  
+  public toString(): String {
+    return "<int: ${repr.toString()}>";
+  }
+} 
+
+export class Text extends Tree {
+  public repr: String;
+
+  public constructor(repr_: String) {
+    repr = repr_;
+  }
+  
+  public type(): String {
+    return "text";
+  }
+
+  public toString(): String {
+    return "<string: \"${repr}\">";
+  }
+} 
+
+class State {
+  public str: List<String>;
+  public pos: Int;
+
+  public constructor(src: String) {
+    str = src.split("");
+    pos = 0;
+  }
+
+  public skip(): Void {
+    pos += 1;
+  }
+
+  public done(): Boolean {
+    return str.length <= pos;
+  }
+
+  public first(): String {
+    return str[pos];
+  }
+
+  public read(): String {
+    var ret = first();
+    skip();
+    return ret;
+  }
+}
+
+class Binding {
+  public name: String;
+  public generics: List<String>;
+  public args: List<Binding>;
+  public known: List<String>;
+  public isFunc: Boolean;
+   
+  public constructor(name_: String, generics_: List<String>, args_: List<Binding>, known_: List<String>, isFunc_: Boolean) {
+    name = name_;
+    generics = generics_;
+    args = args_;
+    known = known_;
+    isFunc = isFunc_;
+  }
+
+  public let toString(): String {
+    if (isFunc) {
+      var genericsJoin = generics.join(" ", fn(s: String): String {s});
+      let argsJoin = args.join(" ", fn(s: Binding): String {s.toString()});
+      return "(${name} [${genericsJoin}] ${argsJoin})";
+    } else {
+      return name;
+    }
+  }
+
+  public let toType(): Tree {
+    if (isFunc && args.length != 0) {
+      var formArgs = new ListBuilder<Tree>();
+      formArgs.add(new Ident(name));
+      for (var i = 0; i < args.length; i++) {
+        formArgs.add(args[i].toType());
+      }
+      return new Form("type.func", formArgs.toList());
+    } else {
+      return new Form("type.value", [new Ident(name)]);
+    }
+  }
+}
+
+let parseInt(s: String): Int {
+  var ret = 0;
+  var code = s.codePoints;
+  while (!code.isEmpty) {
+    ret *= 10;
+    ret += code.read() - 48;
+    code = code.advance(1);
+  }
+  return ret;
+}
+
+let isSpaceChar(s: String): Boolean {
+  return s == " " || s == "\t" || s == "\r" || s == "\n";
+}
+
+let isWordChar(s: String): Boolean {
+  return ("0" <= s && s <= "9") ||  ("a" <= s && s <= "z") ||  ("A" <= s && s <= "Z") || s == "-" || s == "_";
+}
+
+let canFind(s: List<String>, v: String): Boolean {
+  for (var i = 0; i < s.length; i++) {
+    if (s[i] == v) {
+      return true;
+    }
+  }
+  return false;
+}
+
+class ArgArray {
+  public generic: List<String>;
+  public args: List<Binding>;
+}
+
+class Parser {
+  public state: State;
+  public defs: ListBuilder<List<Binding>>;
+  public generics: ListBuilder<List<Binding>>;
+
+  public constructor(src: String) {
+    state = new State(src);
+    defs = new ListBuilder<List<Binding>>();
+    defs.add([]);
+    generics = new ListBuilder<List<Binding>>();
+  }
+
+  public err(str: String): Void {
+    console.log(str);
+  }
+
+  public skipSpace(): Void {
+    while (!state.done() && (isSpaceChar(state.first()) || state.first() == "#")) {
+      if (isSpaceChar(state.first())) {
+        state.skip();
+      } else if (state.first() == "#") {
+        state.skip();
+        if (state.done()) {
+          err("unclosed comment");
+        }
+        while (state.first() != "#") {
+          state.skip();
+          if (state.done()) {
+            err("unclosed comment");
+          }
+        }
+        state.skip();
+      }
+    }
+  }
+
+  public readName(): String {
+    skipSpace();
+    var build = new ListBuilder<String>();
+    while (!state.done() && isWordChar(state.first())) {
+      build.add(state.first());
+      state.skip();
+    }
+    var name = build.join("", fn(s: String): String {s});
+    return name;
+  }
+
+  public readArgArray(known_: List<String>): ArgArray {
+    var known = known_.toListBuilder();
+    skipSpace();
+    if (state.first() != "(") {
+      err("expected an open paren");
+    }
+    state.skip();
+    var generic = new ListBuilder<String>();
+    var args = new ListBuilder<Binding>();
+    while (!state.done() && state.first() != ")") {
+      if (state.first() == "(") {
+        var sub = readArgArray(known.toList());
+        var bind = new Binding(sub.args[0].name, sub.generic, sub.args.slice(1, sub.args.length), known.toList(), true);
+        args.add(bind);
+        skipSpace();
+      } else if (state.first() == "[") {
+        state.skip();
+        skipSpace();
+        while (state.first() != "]") {
+          var name = readName();
+          generic.add(name);
+          known.add(name);
+          skipSpace();
+        }
+        state.skip();
+        skipSpace();
+      } else {
+        args.add(new Binding(readName(), [], [], [], false));
+        skipSpace();
+      }
+    }
+    state.skip();
+    skipSpace();
+    return new ArgArray(generic.toList(), args.toList());
+  }
+
+  public readGeneric(): Binding {
+    skipSpace();
+    if (state.first() != "(") {
+      return new Binding(readName(), [], [], [], false);
+    } else {
+      var sub = readArgArray([]);
+      return new Binding(sub.args[0].name, sub.generic, sub.args.slice(1, sub.args.length), [], true);
+    }
+  }
+
+  public findGenericOr(name: String, els: Binding): Binding {
+    for (var i = generics.length-1; i >= 0; i--) {
+      var genericList = generics[i];
+      for (var j = 0; j < genericList.length; j++) {
+        if (genericList[j].name == name) {
+          return genericList[j];
+        }
+      }
+    }
+    return els;
+  }
+  
+  public readCall(name: String): Tree {
+    for (var defsIndex = defs.length-1; defsIndex >= 0; defsIndex--) {
+      var scope = defs[defsIndex];
+      for (var scopeIndex = 0; scopeIndex < scope.length; scopeIndex++) {
+        var binding = scope[scopeIndex];
+        if (binding.name == name) {
+          if (binding.isFunc) {
+            var argValues = new ListBuilder<Tree>();
+            argValues.add(new Ident(name));
+            var genericLayer = new ListBuilder<Binding>();
+            var defLayer = new ListBuilder<Binding>();
+            var impls = new ListBuilder<String>();
+            for (var genericIndex = 0; genericIndex < binding.generics.length; genericIndex++) {
+              var generic: String = binding.generics[genericIndex]; 
+              var bind = readGeneric();
+              genericLayer.add(new Binding(generic, bind.generics, bind.args, bind.known, bind.isFunc));
+              defLayer.add(bind);
+              impls.add(generic);
+            }
+            generics.add(genericLayer.toList());
+            defs.add(defLayer.toList());
+            for (var argIndex = 0; argIndex < binding.args.length; argIndex++) {
+              var argType = binding.args[argIndex];
+              if (canFind(binding.known, argType.name) || canFind(impls.toList(), argType.name)) {
+                var generic: Binding = findGenericOr(argType.name, new Binding("?", [], [], [], false)) ;
+                defs.removeLast();
+                defLayer.add(generic);
+                defs.add(defLayer.toList());
+                argValues.add(readExprMatch(argType));
+              } else {
+                argValues.add(readExprMatch(argType));
+              }
+            }
+            defs.removeLast();
+            generics.removeLast();
+            return new Form("call", argValues.toList());
+          } else {
+            return new Ident(name);
+          }
+        }
+      }
+    }
+    err("variable not found: ${name}")
+    return new Ident("?");
+  }
+
+  public readSingle(): Tree {
+    var name = readName();
+    if (name == "") {
+      err('expected expression');
+    }
+    var res: Tree = new Ident("?");
+    var split = name.split("")[0];
+    if ("0" <= split && split <= "9") {
+        res = new Number(parseInt(name));
+    } else {
+        res = readCall(name);
+    }
+    skipSpace();
+    return res;
+  }
+
+  public readFunc(type: Binding): Tree {
+    var names = new ListBuilder<Tree>();
+    var defLayer = new ListBuilder<Binding>();
+    var known = new ListBuilder<String>();
+    for (var genericIndex = 0; genericIndex < type.generics.length; genericIndex++) {
+      var generic = type.generics[genericIndex];
+      var bind = new Binding(generic, [], [], [], false);
+      defLayer.add(bind);
+      known.add(generic);
+    }
+    for (var argIndex = 0; argIndex < type.args.length; argIndex++) {
+      var arg = type.args[argIndex];
+      if (canFind(type.known, arg.name) || canFind(known.toList(), arg.name)) {
+        var generic = findGenericOr(arg.name, new Binding("?", [], [], [], false));
+        defLayer.add(generic);
+        names.add(new Ident(generic.name));
+      } else {
+        defLayer.add(arg);
+        names.add(new Ident(arg.name));
+      }
+    }
+    defs.add(defLayer.toList());
+    var expr = readExprMatch(new Binding("?", [], [], [], false));
+    defs.removeLast();
+    var ret = new Form("lambda", [new Form("args", names.toList()), expr]); 
+    return ret;
+  }
+
+  public readExprMatch(type: Binding): Tree {
+    skipSpace();
+    var paren = state.first() == "(";
+    skipSpace();
+    if (paren) {
+      state.skip();
+      skipSpace();
+    }
+    var ret: Tree = new Ident("?");
+    if (type.isFunc) {
+      ret = readFunc(type);
+    } else {
+      ret = readSingle(); 
+    }
+    if (paren) {
+      state.skip();
+    }
+    return ret;
+  }
+
+  public readDef(): Tree {
+    var ret: Tree = new Ident("?");
+    skipSpace();
+    var ty = readArgArray([]);
+    var fname = ty.args[0].name;
+    defs.add([new Binding(fname, ty.generic, ty.args.slice(1, ty.args.length), [], true)])
+    defs.add(ty.args.slice(1, ty.args.length));
+    var argNames = ty.args.map(fn(x: Binding): Tree {
+      return x.toType();
+    });
+    skipSpace();
+    if (state.first() == "?") {
+      state.skip();
+      ret = new Form("extern", [argNames[0], new Form("args", argNames.slice(1, argNames.length))]);
+    } else {
+      ret = new Form("func", [argNames[0], new Form("args", argNames.slice(1, argNames.length)), readExprMatch(new Binding("?", [], [], [], false))]);
+    }
+    defs.removeLast();
+    return ret;
+  }
+
+  public readDefs(): Tree {
+    var all = new ListBuilder<Tree>();
+    while (!state.done()) {
+      skipSpace();
+      all.add(readDef());
+      skipSpace();
+    }
+    return new Form("program", all.toList());
+  }
+}
+
+export let parse(s: String): Tree {
+  return new Parser(s).readDefs();
+}

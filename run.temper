@@ -1,0 +1,168 @@
+
+let {Tree, Form, Ident, Number, Text} = import("./parser.temper");
+
+class Def {
+  public key: String;
+  public value: Tree;
+}
+
+class Lambda extends Tree {
+  public args: List<String>;
+  public body: Tree;
+
+  public constructor(body_: Tree, args_: List<String>) {
+    body = body_;
+    args = args_;
+  }
+
+  public toString(): String {
+    return "<lambda ${args.join(", ", fn(s: String): String{s})}: ${body.toString()}>";
+  }
+}
+
+class Extern extends Tree {
+  public name: String;
+}
+
+class Err extends Tree {}
+
+class Env {
+  public defs: ListBuilder<ListBuilder<Def>>;
+
+  public constructor() {
+    defs = new ListBuilder<ListBuilder<Def>>();
+    defs.add(new ListBuilder<Def>());
+  }
+
+  public runProgram(form: Form): Tree {
+    var ret: Tree = new Number(0);
+    for (var i = 0; i < form.args.length; i++) {
+      ret = runTree(form.args[i]);
+    }
+    return ret;
+  }
+
+  public runFuncDef(form: Form): Tree {
+    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
+    var args = form.args[1].as<Form>().args.map(fn(x: Tree): String {
+      return x.as<Form>().args[0].as<Ident>().repr;
+    });
+    var def = new Lambda(form.args[2], args);
+    defs[defs.length-1].add(new Def(name, def));
+    return def;
+  }
+
+  public runExternDef(form: Form): Tree {
+    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
+    var def = new Extern(name);
+    defs[defs.length-1].add(new Def(name, def));
+    return form;
+  }
+
+  public runCall(form: Form): Tree {
+    var self = this;
+    var func = runTree(form.args[0]);
+    var args = form.args.slice(1, form.args.length).map(fn(s: Tree): Tree {
+      return self.runTree(s);
+    });
+    return callTree(func, args);
+  }
+
+  public runLambda(form: Form): Tree {
+    var args = form.args[0].as<Form>().args.map(fn(s: Tree): String {
+      return s.as<Ident>().repr;
+    });
+    return new Lambda(form.args[1], args);
+  }
+
+  public runForm(form: Form): Tree {
+    match (form.form) {
+      "call" -> return runCall(form);
+      "lambda" -> return runLambda(form);
+      "extern" -> return runExternDef(form);
+      "func" -> return runFuncDef(form);
+      "program" -> return runProgram(form);
+      else -> return new Err();
+    }
+  }
+
+  public runIdent(id: Ident): Tree {
+    return getEnv(id.repr);
+  }
+
+  public runTree(tree: Tree): Tree {
+    match (tree) {
+      is Form -> return runForm(tree.as<Form>());
+      is Ident -> return runIdent(tree.as<Ident>());
+      else -> return tree;
+    }
+  }
+
+  public getEnv(name: String): Tree {
+    for (var i = defs.length-1; i >= 0; i--) {
+      var cur = defs[i];
+      for (var j = 0; j < cur.length; j++) {
+        if (cur[j].key == name) {
+          return cur[j].value;
+        }
+      }
+    }
+    console.log("undefined: ${name}")
+    return new Err();
+  }
+
+  public callLambda(func: Lambda, args: List<Tree>): Tree {
+    var defLayer = new ListBuilder<Def>();
+    for (var i = 0; i < func.args.length && i < args.length; i++) {
+      defLayer.add(new Def(func.args[i], args[i]));
+    }
+    defs.add(defLayer);
+    var ret = runTree(func.body);
+    defs.removeLast();
+    return ret;
+  }
+
+  public callExtern(func: Extern, args: List<Tree>): Tree {
+    if (func.name == "print") {
+      match (args[0]) {
+        is Number -> console.log(args[0].as<Number>().repr.toString());
+        is Text -> console.log(args[0].as<Text>().repr);
+        is Err -> console.log("<err>");
+        else -> console.log(args[0].toString());
+      }
+      return args[0];
+    } else if (func.name == "if") {
+      if (args[0].as<Number>().repr != 0) {
+        return callTree(args[1], []);
+      } else {
+        return callTree(args[2], []);
+      }
+    } else if (func.name == "lt") {
+      if (args[1].as<Number>().repr < args[0].as<Number>().repr) {
+        return new Number(1);
+      } else {
+        return new Number(0);
+      }
+    } else if (func.name == "add") {
+      return new Number(args[1].as<Number>().repr + args[0].as<Number>().repr);
+    } else if (func.name == "sub") {
+      return new Number(args[1].as<Number>().repr - args[0].as<Number>().repr);
+    } else {
+      return new Err();
+    }
+  }
+
+  public callTree(func: Tree, args: List<Tree>): Tree {
+    match (func) {
+      is Lambda -> return callLambda(func.as<Lambda>(), args);
+      is Extern -> return callExtern(func.as<Extern>(), args);
+      else -> return new Err();
+    }
+  }
+}
+
+export let run(tree: Tree): Tree {
+  var env = new Env();
+  env.runTree(tree);
+  return env.callTree(env.getEnv("main"), []);
+}
