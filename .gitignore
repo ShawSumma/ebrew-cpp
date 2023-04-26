@@ -7,3 +7,5 @@ out.*
 a.out
 .vscode
 err.txt
+*.o
+build

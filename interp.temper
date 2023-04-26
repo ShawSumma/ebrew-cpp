@@ -6,13 +6,14 @@ class Def {
   public value: AnyValue;
 }
 
-let ExternFunc = fn(List<AnyValue>): AnyValue;
+let Cont = fn(AnyValue): Void;
+let ExternFunc = fn(List<AnyValue>, Cont): Void;
 
 class Extern {
   public callback: ExternFunc;
 
-  public invoke(args: List<AnyValue>): AnyValue {
-    return callback(args);
+  public invoke(args: List<AnyValue>, cont: Cont): Void {
+    return callback(args, cont);
   }
 }
 
@@ -72,125 +73,203 @@ class LocalScope extends Scope {
   }
 }
 
+let throwAway(v: AnyValue): Void {
+
+}
+
 export class Env {
   public globals: GlobalScope;
   public defs: Scope;
   public parser: Parser;
+  public filled: Boolean;
+  public func: fn(AnyValue): Void;
+  public arg: AnyValue;
 
   public constructor() {
     globals = new GlobalScope(new ListBuilder<Def>());
     defs = globals;
     parser = new Parser("");
+    filled = false;
+    define("equal", fn(args: List<AnyValue>, k: Cont): Void {
+      if (args[0].as<Int>() == args[1].as<Int>()) {
+        k(1);
+      } else {
+        k(0);
+      }
+    });
+    define("above", fn(args: List<AnyValue>, k: Cont): Void {
+      if (args[1].as<Int>() < args[0].as<Int>()) {
+        k(1);
+      } else {
+        k(0);
+      }
+    });
+    define("pair", fn(args: List<AnyValue>, k: Cont): Void {
+      k([args[0], args[1]]);
+    });
+    define("first", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[0].as<List<AnyValue>>()[0]);
+    });
+    define("second", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[0].as<List<AnyValue>>()[1]);
+    });
+    define("add", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[1].as<Int>() + args[0].as<Int>());
+    });
+    define("sub", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[1].as<Int>() - args[0].as<Int>());
+    });
+    define("mul", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[1].as<Int>() * args[0].as<Int>());
+    });
+    define("div", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[1].as<Int>() / args[0].as<Int>());
+    });
+    define("mod", fn(args: List<AnyValue>, k: Cont): Void {
+      k(args[1].as<Int>() % args[0].as<Int>());
+    });
+    var buf = new ListBuilder<Int>();
+    define("putchar", fn(args: List<AnyValue>, k: Cont): Void {
+      var c = args[0].as<Int>();
+      if (c == 10) {
+        let {fromAsciiCode} = import("./ascii.temper");
+        console.log(buf.join("", fromAsciiCode));
+        buf = new ListBuilder<Int>();
+      } else {
+        buf.add(c);
+      }
+      k(0);
+    });
+    define("if", fn(args: List<AnyValue>, k: Cont): Void {
+      match (args[0]) {
+        0 -> args[2].as<Extern>().invoke([], k);
+        else -> args[1].as<Extern>().invoke([], k);
+      }
+    });
+  }
+
+  public invoke(func_: fn(AnyValue): Void, arg_: AnyValue): Boolean {
+    func = func_;
+    arg = arg_;
+    filled = true;
   }
 
   public setDefs(scope: Scope): Void {
     defs = scope;
   }
 
-  public define(name: String, value: fn(List<AnyValue>): AnyValue): Void {
+  public define(name: String, value: ExternFunc): Void {
     globals.add(new Def(name, new Extern(value)));
+  }
+
+  public run(): Void {
+    while (filled) {
+      filled = false;
+      func(arg);
+    }
   }
 
   public source(code: String): Void {
     parser.setState(code);
-    runTree(parser.readDefs());
+    runTree(parser.readDefs(), throwAway);
+    run();
   }
 
   public call(name: String, args: List<AnyValue>): AnyValue {
-    return callTree(getEnv(name), args);
-  }
-
-  public runProgram(form: Form): AnyValue {
-    var ret: AnyValue = 0;
-    for (var i = 0; i < form.args.length; i++) {
-      ret = runTree(form.args[i]);
-    }
-    return ret;
-  }
-
-  let stringify(s: AnyValue): String {
-    match (s) {
-      is String -> return s.as<String>();
-      is Boolean -> if (s.as<Boolean>()) {
-        return "1";
-      } else {
-        return "0";
+    var self = this;
+    var realArgs = args.map(fn(v: AnyValue): AnyValue {
+      match (v) {
+        is String -> return self.stringList(v.as<String>());
+        else -> return v;
       }
-      is Int -> return s.as<Int>().toString();
-      is Float64 -> return s.as<Float64>().toString();
-      is List -> return "(${s.as<List<AnyValue>>().join(", ", fn(s: AnyValue) {stringify(s)})})";
-      else -> return "?";
+    });
+    var res: AnyValue = 0;
+    callTree(getEnv(name), realArgs, fn(v: AnyValue): Void {
+      res = v;
+    });
+    run();
+    return res;
+  }
+
+  public runProgram(form: Form, cont: Cont): Void {
+    for (var i = 0; i < form.args.length; i++) {
+      runTree(form.args[i], throwAway);
     }
   }
 
   public newLambda(argNames: List<String>, body: Tree, scope: Scope): Extern {
     var self = this;
-    return new Extern(fn(args: List<AnyValue>): AnyValue {
+    return new Extern(fn(args: List<AnyValue>, cont: Cont): Void {
       var lastDefs = self.defs;
       var argDefs = new ListBuilder<Def>();
       for (var i = 0; i < args.length; i++) {
         argDefs.add(new Def(argNames[i], args[i]));
       }
       self.setDefs(new LocalScope(scope, argDefs.toList()));
-      var ret = self.runTree(body);
-      self.setDefs(lastDefs);
-      return ret;
+      self.runTree(body, fn(val: AnyValue): Void {
+        self.setDefs(lastDefs);
+        self.invoke(cont, val);
+      });
     });
   }
 
-  public runLambda(form: Form): AnyValue {
+  public runLambda(form: Form, cont: Cont): Void {
     var args = form.args[0].as<Form>().args.map(fn(s: Tree): String {
       return s.as<Ident>().repr;
     });
-    return newLambda(args, form.args[1], defs);
+    invoke(cont, newLambda(args, form.args[1], defs));
   }
 
-  public runFuncDef(form: Form): AnyValue {
+  public runFuncDef(form: Form, cont: Cont): Void {
     var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
     var argNames = form.args[1].as<Form>().args.map(fn(x: Tree): String {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
-    var def = newLambda(argNames, form.args[2], defs);
-    globals.add(new Def(name, def));
-    return def;
+    globals.add(new Def(name, newLambda(argNames, form.args[2], defs)));
   }
 
-  public runExternDef(form: Form): AnyValue {}
+  public runExternDef(form: Form, cont: Cont): Void {}
 
-  public runCall(form: Form): AnyValue {
+  public runCall(form: Form, cont: Cont): Void {
     var self = this;
-    var func = runTree(form.args[0]);
-    if (isBad(func)) {
-      return func;
-    }
-    var args = new ListBuilder<AnyValue>();
-    for (var i = 1; i < form.args.length; i++) {
-      var val = runTree(form.args[i]);
-      if (isBad(val)) {
-        return val;
+    runTree(form.args[0], fn(func: AnyValue): Void {
+      if (isBad(func)) {
+        self.invoke(cont, func);
+      } else {
+        var args = new ListBuilder<AnyValue>();
+        let more(): Void {
+          var i = args.length + 1;
+          if (i < form.args.length) {
+            self.runTree(form.args[i], fn(v: AnyValue) {
+              if (isBad(v)) {
+                cont(v);
+              } else {
+                args.add(v);
+                more();
+              }
+            });
+          } else {
+            self.callTree(func, args.toList(), cont);
+          }
+        }
+        more();
       }
-      args.add(val);
-    }
-    // console.log(form.args[0].toString());
-    match (func) {
-      is Extern -> return callTree(func, args.toList());
-      else -> return new Err("not a func: ${form.args[0].toString()} (in: ${defs.toString()})");
-    }
+    })
   }
 
-  public runForm(form: Form): AnyValue {
+  public runForm(form: Form, cont: Cont): Void {
     match (form.form) {
-      "call" -> return runCall(form);
-      "lambda" -> return runLambda(form);
-      "extern" -> return runExternDef(form);
-      "func" -> return runFuncDef(form);
-      "program" -> return runProgram(form);
-      else -> return new Err("unknown form: ${form.form}");
+      "call" -> runCall(form, cont);
+      "lambda" -> runLambda(form, cont);
+      "extern" -> runExternDef(form, throwAway);
+      "func" -> runFuncDef(form, throwAway);
+      "program" -> runProgram(form, throwAway);
+      else -> invoke(cont, new Err("unknown form: ${form.form}"));
     }
   }
 
-  public runIdent(id: Ident): AnyValue {
-    return getEnv(id.repr);
+  public runIdent(id: Ident, cont: Cont): Void {
+    invoke(cont, getEnv(id.repr));
   }
 
   public stringList(id: String): AnyValue {
@@ -203,13 +282,13 @@ export class Env {
     return ret;
   }
 
-  public runTree(tree: Tree): AnyValue {
+  public runTree(tree: Tree, cont: Cont): Void {
     match (tree) {
-      is Form -> return runForm(tree.as<Form>());
-      is Ident -> return runIdent(tree.as<Ident>());
-      is Number -> return tree.as<Number>().repr;
-      is Text -> return stringList(tree.as<Text>().repr);
-      else -> return new Err("unknown type");
+      is Form -> runForm(tree.as<Form>(), cont);
+      is Ident -> runIdent(tree.as<Ident>(), cont);
+      is Number -> invoke(cont, tree.as<Number>().repr);
+      is Text -> invoke(cont, stringList(tree.as<Text>().repr));
+      else -> invoke(cont, new Err("unknown type"));
     }
   }
 
@@ -217,13 +296,7 @@ export class Env {
     return defs.lookup(name);
   }
 
-  public callTree(func: AnyValue, args: List<AnyValue>): AnyValue {
-    return func.as<Extern>().invoke(args);
+  public callTree(func: AnyValue, args: List<AnyValue>, cont: Cont): Void {
+    func.as<Extern>().invoke(args, cont);
   }
-}
-
-export let run(tree: Tree): AnyValue {
-  var env = new Env();
-  env.runTree(tree);
-  return env.callTree(env.getEnv("main"), []);
 }
