@@ -1,0 +1,17 @@
+
+(putchar c) ?
+(first p) ?
+(second p) ?
+(if c (t) (f)) ?
+
+(and x (y)) if x y 0
+
+(do x y) y
+
+(puts s)
+and s
+do  putchar first s
+    puts second s
+
+(main args)
+puts "hello, world!"

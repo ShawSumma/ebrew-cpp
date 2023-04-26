@@ -690,9 +690,8 @@ if  ast-is-function tree
         fold xdefs arg
              0    second second first second tree
             defs-append xdefs second arg pair 0 second arg
-    let (path) compile-str second first second first second tree
     do  put-str "size_t "
-    do  path
+    do compile-str second first second first second tree
     do  put-str "(size_t c"
     do  for arg second second first second tree
         do  put-str ","
@@ -700,9 +699,9 @@ if  ast-is-function tree
             compile-str second arg
     do  put-str ");"
     do  put-line
-    do  pre-compile-ast second second tree compile-ast-path tree path defs path defs
+    do  pre-compile-ast second second tree compile-ast-path tree path defs compile-str second first second first second tree defs
     do  put-str "size_t "
-    do  path
+    do  compile-str second first second first second tree
     do  put-str "(size_t c"
     do  for arg second second first second tree
         do  put-str ","
@@ -710,7 +709,7 @@ if  ast-is-function tree
             compile-str second arg
     do  put-str "){size_t n=ebz_alloc_get_size();"
     do  put-str "size_t r="
-    do  compile-ast-path second second tree path defs
+    do  compile-ast-path second second tree compile-str second first second first second tree defs
     do  put-str ";ebz_alloc_set_size(n);return r;}"
         put-line
 if  ast-is-lambda tree

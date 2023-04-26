@@ -1,0 +1,8 @@
+
+(putchar c) ?
+
+(do x y) y
+
+(main a)
+do putchar ':
+    putchar ')
