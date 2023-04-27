@@ -1,4 +1,3 @@
-(print x) ?
 
 # builtin #
 
@@ -783,9 +782,13 @@ if  and ast-is-name func
                     defs
             do  put-str ";"
                 add 1 n
-    do  put-str "((size_t(*)())(*(size_t*)f))(f"
+    do  put-str "((size_t(*)(size_t"
     do  fold n el
-            0 second second tree
+             0 second second tree
+            put-str ",size_t"
+    do  put-str"))(*(size_t*)f))(f"
+    do  fold n el
+             0 second second tree
             do  put-str ",v"
             do  put-num n
             add 1 n
@@ -946,7 +949,10 @@ parse-toplevel str-to-state str binding-table
 
 (main-c str)
 parse-toplevel str-to-state str binding-table
-    do  put-str "#include <ebrew.h>"
+    do  put-str "#include "
+    do  putchar '"
+    do  put-str "ebrew.h"
+    do  putchar '"
     do  put-line
         for node values
             compile-ast-path node 0 0
@@ -967,7 +973,7 @@ if  str-eq lang "lua"
 err-unknown-lang lang
 
 (comp-final file lang)
-main-lang read-file file lang
+main-lang lang read-file file
 
 (comp args file lang)
 if  and args str-eq "--target" first args  
