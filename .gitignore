@@ -9,3 +9,5 @@ a.out
 err.txt
 *.o
 build
+__pycache__
+.mypy_cache

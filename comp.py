@@ -1,5 +1,8 @@
 import logging
 import sys
+import faulthandler
+
+faulthandler.enable(file=sys.stderr, all_threads=True)
 
 logging.basicConfig(filename="/dev/stdout", level=logging.DEBUG, format="%(message)s")
 

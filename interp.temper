@@ -9,11 +9,31 @@ class Def {
 let Cont = fn(AnyValue): Void;
 let ExternFunc = fn(List<AnyValue>, Cont): Void;
 
-class Extern {
-  public callback: ExternFunc;
+interface Extern {
+  public invoke(args: List<AnyValue>, cont: Cont): Void {}
+}
 
+class ExternDefine extends Extern {
+  public callback: ExternFunc;
   public invoke(args: List<AnyValue>, cont: Cont): Void {
     return callback(args, cont);
+  }
+}
+
+class ExternLambda extends Extern {
+  public self: Env;
+  public argNames: List<String>;
+  public body: Tree;
+  public scope: Scope;
+
+  public invoke(args: List<AnyValue>, cont: Cont): Void {
+    var me = self;
+    var lastDefs = self.defs;
+    self.setDefs(new LocalScope(scope, argNames, args));
+    self.runTree(body, fn(val: AnyValue): Void {
+      me.setDefs(lastDefs);
+      me.invoke(cont, val);
+    });
   }
 }
 
@@ -56,19 +76,20 @@ class GlobalScope extends Scope {
 
 class LocalScope extends Scope {
   public next: Scope;
-  public vars: List<Def>;
+  public keys: List<String>;
+  public values: List<AnyValue>;
 
   public lookup(name: String): AnyValue {
-    for (var i = 0; i < vars.length; i++) {
-      if (vars[i].key == name) {
-        return vars[i].value;
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] == name) {
+        return values[i];
       }
     }
     return next.lookup(name);
   }
 
   public toString(): String {
-    var my = vars.join(" ", fn(d: Def): String { d.key });
+    var my = keys.join(" ", fn(s: String):String{s});
     return "{${my}} ${next.toString()}"
   }
 }
@@ -159,7 +180,7 @@ export class Env {
   }
 
   public define(name: String, value: ExternFunc): Void {
-    globals.add(new Def(name, new Extern(value)));
+    globals.add(new Def(name, new ExternDefine(value)));
   }
 
   public run(): Void {
@@ -198,19 +219,7 @@ export class Env {
   }
 
   public newLambda(argNames: List<String>, body: Tree, scope: Scope): Extern {
-    var self = this;
-    return new Extern(fn(args: List<AnyValue>, cont: Cont): Void {
-      var lastDefs = self.defs;
-      var argDefs = new ListBuilder<Def>();
-      for (var i = 0; i < args.length; i++) {
-        argDefs.add(new Def(argNames[i], args[i]));
-      }
-      self.setDefs(new LocalScope(scope, argDefs.toList()));
-      self.runTree(body, fn(val: AnyValue): Void {
-        self.setDefs(lastDefs);
-        self.invoke(cont, val);
-      });
-    });
+    return new ExternLambda(this, argNames, body, scope);
   }
 
   public runLambda(form: Form, cont: Cont): Void {
@@ -226,6 +235,14 @@ export class Env {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
     globals.add(new Def(name, newLambda(argNames, form.args[2], defs)));
+  }
+
+  public runDo(form: Form, cont: Cont): Void {
+    if (form.args.length == 0) {
+      cont(new Err("unreachable"));
+    } else {
+      runTree(form.args[0], cont);
+    }
   }
 
   public runExternDef(form: Form, cont: Cont): Void {}
@@ -261,6 +278,7 @@ export class Env {
     match (form.form) {
       "call" -> runCall(form, cont);
       "lambda" -> runLambda(form, cont);
+      "do" -> runDo(form, cont);
       "extern" -> runExternDef(form, throwAway);
       "func" -> runFuncDef(form, throwAway);
       "program" -> runProgram(form, throwAway);
