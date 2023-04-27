@@ -1,0 +1,334 @@
+
+let {Tree, Form, Ident, Number, Text, Parser} = import("./parser.temper");
+
+let Cont = fn(AnyValue): Void;
+
+var todo = false;
+var todoArg: AnyValue;
+var todoCont: Cont;
+
+let runTodo(): Void {
+  while (todo) {
+    todoCont(todoArg);
+  }
+}
+
+class Err {
+  public msg: String;
+
+  constructor(err: String) {
+    console.log(err);
+    msg = err;
+  }
+}
+
+class Def {
+  public key: String;
+  public value: AnyValue;
+}
+
+interface Scope {
+  public lookup(name: String): AnyValue;
+  public toString(): String;
+}
+
+class GlobalScope extends Scope {
+  public vars: ListBuilder<Def>;
+
+  public lookup(name: String): AnyValue {
+    for (var i = vars.length-1; i >= 0; i--) {
+      if (vars[i].key == name) {
+        return vars[i].value;
+      }
+    }
+    return new Err("undefined: ${name}");
+  }
+
+  public add(def: Def): Void {
+    vars.add(def);
+  }
+
+  public toString(): String {
+    return "{...}";
+  }
+}
+
+class LocalScope extends Scope {
+  public next: Scope;
+  public keys: List<String>;
+  public values: ListBuilder<AnyValue>;
+
+  public lookup(name: String): AnyValue {
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] == name) {
+        return values[i];
+      }
+    }
+    return next.lookup(name);
+  }
+
+  public toString(): String {
+    var my = keys.join(" ", fn(s: String):String{s});
+    return "{${my}} ${next.toString()}"
+  }
+}
+
+interface Runner {
+  public run(env: Scope, cont: Cont): Void;
+}
+
+class ErrRunner extends Runner {}  
+
+class LookupRunner extends Runner {
+  public name: String;
+
+  public run(env: Scope, cont: Cont): Void {
+    todo = true;
+    todoArg = env.lookup(name);
+    todoCont = cont;
+  }
+}
+
+let Define = fn(LocalScope, List<AnyValue>, Cont): Void;
+
+class DefineRunner extends Runner {
+  public callback: Define;
+
+  public run(env: Scope, cont: Cont): Void {
+    var scope = env.as<LocalScope>();
+    callback(scope, scope.values.toList(), cont);
+  }
+}
+
+class Lambda {
+  public lambdaScope: Scope;
+  public argNames: List<String>;
+  public bodyRunner: Runner;
+}
+
+class LambdaRunner extends Runner {
+  public argNames: List<String>;
+  public bodyRunner: Runner;
+  
+  public run(env: Scope, cont: Cont): Void {
+    todo = true;
+    todoArg = new Lambda(env, argNames, bodyRunner);
+    todoCont = cont;
+  }
+}
+
+class CallRunner extends Runner {
+  public funcName: String;
+  public args: List<Runner>;
+
+  public run(env: Scope, cont: Cont): Void {
+    let {lambdaScope, argNames, bodyRunner} = env.lookup(funcName).as<Lambda>();
+    if (argNames.length == 0) {
+      bodyRunner.run(lambdaScope, cont);
+    } else {
+      let self = this;
+      
+      var args = new ListBuilder<AnyValue>();
+
+      let more(v: AnyValue): Void {
+        args.add(v);
+        if (args.length == argNames.length) {
+          var nextEnv = new LocalScope(lambdaScope, argNames, args);
+          bodyRunner.run(nextEnv, cont);
+        } else {
+          self.args[args.length].run(env, more);
+        }
+      }
+
+      self.args[0].run(env, more);
+    }
+  }
+}
+
+class ValueRunner extends Runner {
+  public value: AnyValue;
+
+  public run(env: Scope, cont: Cont): Void {
+    todo = true;
+    todoArg = value;
+    todoCont = cont;
+  }
+}
+
+let stringList(id: String): AnyValue {
+  var ret: AnyValue = 0;
+  var parts = id.split("");
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var t: List<AnyValue> = [parts[i].codePoints.read(), ret];
+    ret = t;
+  }
+  return ret;
+}
+
+export class Env {
+  public env: GlobalScope;
+  public parser: Parser;
+  var putCharBuf: ListBuilder<Int>;
+
+  public constructor() {
+    env = new GlobalScope(new ListBuilder<Def>());
+    parser = new Parser("");
+    putCharBuf = new ListBuilder<Int>();
+  }
+ 
+  public source(code: String): Void {
+    parser.setState(code);
+    var prog = parser.readDefs();
+    compProgram(prog);
+  }
+
+  public call(name: String, args: List<AnyValue>): AnyValue {
+    var realArgs = args.map(fn(v: AnyValue): AnyValue {
+      match (v) {
+        is String -> return stringList(v.as<String>());
+        else -> return v;
+      }
+    });
+    var func = env.lookup(name).as<Lambda>();
+    var res: AnyValue = 0;
+    var cont = fn(v: AnyValue): Void {
+      res = v;
+    };
+    var localEnv = new LocalScope(env, func.argNames, realArgs.toListBuilder());
+    func.bodyRunner.run(localEnv, cont);
+    runTodo();
+    return res;
+  }
+
+
+  let compErr(): Runner {
+    return new ErrRunner();
+  }
+
+  let compLambda(form: Form): Runner {
+    var argNames = form.args[0].as<Form>().args.map(fn(s: Tree): String {
+      return s.as<Ident>().repr;
+    });
+    var bodyRunner = compTree(form.args[1]);
+    return new LambdaRunner(argNames, bodyRunner);
+  }
+
+  let compCall(form: Form): Runner {
+    var funcName = form.args[0].as<Ident>().repr;
+    var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {compTree(t)});
+    return new CallRunner(funcName, args);
+  }
+
+  let compForm(form: Form): Runner {
+    match (form.form) {
+      "call" -> compCall(form);
+      "lambda" -> compLambda(form);
+      else -> compErr();
+    }
+  }
+
+  let compTree(tree: Tree): Runner {
+    match (tree) {
+      is Form -> compForm(tree.as<Form>());
+      is Ident -> new LookupRunner(tree.as<Ident>().repr);
+      is Number -> new ValueRunner(tree.as<Number>().repr);
+      is Text -> new ValueRunner(stringList(tree.as<Text>().repr));
+      else -> compErr();
+    }
+  }
+
+  let compExternName(name: String): Define {
+    match (name) {
+      "equal" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        if (args[0].as<Int>() == args[1].as<Int>()) {
+          k(1);
+        } else {
+          k(0);
+        }
+      };
+      "above" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        if (args[1].as<Int>() < args[0].as<Int>()) {
+          k(1);
+        } else {
+          k(0);
+        }
+      };
+      "pair" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k([args[0], args[1]]);
+      };
+      "first" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[0].as<List<AnyValue>>()[0]);
+      };
+      "second" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[0].as<List<AnyValue>>()[1]);
+      };
+      "add" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[1].as<Int>() + args[0].as<Int>());
+      };
+      "sub" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[1].as<Int>() - args[0].as<Int>());
+      };
+      "mul" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[1].as<Int>() * args[0].as<Int>());
+      };
+      "div" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[1].as<Int>() / args[0].as<Int>());
+      };
+      "mod" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(args[1].as<Int>() % args[0].as<Int>());
+      };
+      "putchar" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        var c = args[0].as<Int>();
+        if (c == 10) {
+          let {fromAsciiCode} = import("./ascii.temper");
+          console.log(putCharBuf.join("", fromAsciiCode));
+          putCharBuf = new ListBuilder<Int>();
+        } else {
+          putCharBuf.add(c);
+        }
+        k(0);
+      };
+      "if" ->  fn(ifEnv: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        var func = args[match (args[0]) {0 -> 2; else -> 1}].as<Lambda>();
+        func.bodyRunner.run(func.lambdaScope, k);
+      };
+      else -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+        k(new Err("no such import: (${name} ...) ?"));
+      };
+    }
+  }
+
+  let compExtern(form: Form): Void {
+    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
+    var argNames = form.args[1].as<Form>().args.map(fn(x: Tree): String {
+      return x.as<Form>().args[0].as<Ident>().repr;
+    });
+    var lambda = new Lambda(env, argNames, new DefineRunner(compExternName(name)));
+    env.add(new Def(name, lambda));
+  }
+
+  let compFunc(form: Form): Void {
+    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
+    var argNames = form.args[1].as<Form>().args.map(fn(x: Tree): String {
+      return x.as<Form>().args[0].as<Ident>().repr;
+    });
+    var bodyRunner = compTree(form.args[2]);
+    var lambda = new Lambda(env, argNames, bodyRunner);
+    env.add(new Def(name, lambda));
+  }
+
+  let compTopForm(form: Form): Void {
+    match (form.form) {
+      "extern" -> compExtern(form);
+      "func" -> compFunc(form);
+      else -> compErr();
+    }
+  }
+
+  let compProgram(tree: Tree): Void {
+    var form = tree.as<Form>();
+    for (var i = 0; i < form.args.length; i++) {
+      compTopForm(form.args[i].as<Form>());
+    }
+  }
+}

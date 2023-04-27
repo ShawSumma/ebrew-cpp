@@ -237,14 +237,6 @@ export class Env {
     globals.add(new Def(name, newLambda(argNames, form.args[2], defs)));
   }
 
-  public runDo(form: Form, cont: Cont): Void {
-    if (form.args.length == 0) {
-      cont(new Err("unreachable"));
-    } else {
-      runTree(form.args[0], cont);
-    }
-  }
-
   public runExternDef(form: Form, cont: Cont): Void {}
 
   public runCall(form: Form, cont: Cont): Void {
@@ -278,7 +270,6 @@ export class Env {
     match (form.form) {
       "call" -> runCall(form, cont);
       "lambda" -> runLambda(form, cont);
-      "do" -> runDo(form, cont);
       "extern" -> runExternDef(form, throwAway);
       "func" -> runFuncDef(form, throwAway);
       "program" -> runProgram(form, throwAway);
