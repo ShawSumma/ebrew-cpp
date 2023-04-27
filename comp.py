@@ -12,4 +12,4 @@ def read(name):
 env = Env()
 
 env.source(read("ebb.ebb"))
-env.call("main-low", (read(sys.argv[1]),))
+env.call("main-lang", (sys.argv[1], read(sys.argv[2])))

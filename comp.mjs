@@ -5,4 +5,4 @@ import {Env} from './temper.out/ebb/js/interp.js';
 const env = new Env();
 
 env.source(String(readFileSync("ebb.ebb")));
-env.call("main-low", [String(readFileSync(argv[2]))]);
+env.call("main-lang", [argv[2], String(readFileSync(argv[3]))]);
