@@ -3,12 +3,13 @@ let {Tree, Form, Ident, Number, Text, Parser} = import("./parser.temper");
 
 let Cont = fn(AnyValue): Void;
 
-var todo = false;
-var todoArg: AnyValue;
-var todoCont: Cont;
+var hasTodo = false;
+var todoArg: AnyValue = 0;
+var todoCont: Cont = fn(v: AnyValue): Void {}
 
 let runTodo(): Void {
-  while (todo) {
+  while (hasTodo) {
+    hasTodo = false;
     todoCont(todoArg);
   }
 }
@@ -74,7 +75,7 @@ class LocalScope extends Scope {
 }
 
 interface Runner {
-  public run(env: Scope, cont: Cont): Void;
+  public run(env: LocalScope, cont: Cont): Void;
 }
 
 class ErrRunner extends Runner {}  
@@ -82,26 +83,25 @@ class ErrRunner extends Runner {}
 class LookupRunner extends Runner {
   public name: String;
 
-  public run(env: Scope, cont: Cont): Void {
-    todo = true;
-    todoArg = env.lookup(name);
+  public run(env: LocalScope, cont: Cont): Void {
     todoCont = cont;
+    todoArg = env.lookup(name);
+    hasTodo = true;
   }
 }
 
-let Define = fn(LocalScope, List<AnyValue>, Cont): Void;
+let Define = fn(List<AnyValue>, Cont): Void;
 
 class DefineRunner extends Runner {
   public callback: Define;
 
-  public run(env: Scope, cont: Cont): Void {
-    var scope = env.as<LocalScope>();
-    callback(scope, scope.values.toList(), cont);
+  public run(env: LocalScope, cont: Cont): Void {
+    callback(env.values.toList(), cont);
   }
 }
 
 class Lambda {
-  public lambdaScope: Scope;
+  public lambdaScope: LocalScope;
   public argNames: List<String>;
   public bodyRunner: Runner;
 }
@@ -110,10 +110,10 @@ class LambdaRunner extends Runner {
   public argNames: List<String>;
   public bodyRunner: Runner;
   
-  public run(env: Scope, cont: Cont): Void {
-    todo = true;
-    todoArg = new Lambda(env, argNames, bodyRunner);
+  public run(env: LocalScope, cont: Cont): Void {
     todoCont = cont;
+    todoArg = new Lambda(env, argNames, bodyRunner);
+    hasTodo = true;
   }
 }
 
@@ -121,22 +121,20 @@ class CallRunner extends Runner {
   public funcName: String;
   public args: List<Runner>;
 
-  public run(env: Scope, cont: Cont): Void {
+  public run(env: LocalScope, cont: Cont): Void {
     let {lambdaScope, argNames, bodyRunner} = env.lookup(funcName).as<Lambda>();
+    var scopeArgs = new ListBuilder<AnyValue>();
     if (argNames.length == 0) {
-      bodyRunner.run(lambdaScope, cont);
+      bodyRunner.run(new LocalScope(lambdaScope, argNames, scopeArgs), cont);
     } else {
       let self = this;
-      
-      var args = new ListBuilder<AnyValue>();
 
       let more(v: AnyValue): Void {
-        args.add(v);
-        if (args.length == argNames.length) {
-          var nextEnv = new LocalScope(lambdaScope, argNames, args);
-          bodyRunner.run(nextEnv, cont);
+        scopeArgs.add(v);
+        if (scopeArgs.length == self.args.length) {
+          bodyRunner.run(new LocalScope(lambdaScope, argNames, scopeArgs), cont);
         } else {
-          self.args[args.length].run(env, more);
+          self.args[scopeArgs.length].run(env, more);
         }
       }
 
@@ -148,10 +146,10 @@ class CallRunner extends Runner {
 class ValueRunner extends Runner {
   public value: AnyValue;
 
-  public run(env: Scope, cont: Cont): Void {
-    todo = true;
-    todoArg = value;
+  public run(env: LocalScope, cont: Cont): Void {
     todoCont = cont;
+    todoArg = value;
+    hasTodo = true;
   }
 }
 
@@ -194,18 +192,18 @@ export class Env {
     var cont = fn(v: AnyValue): Void {
       res = v;
     };
-    var localEnv = new LocalScope(env, func.argNames, realArgs.toListBuilder());
+    var localEnv = new LocalScope(func.lambdaScope, func.argNames, realArgs.toListBuilder());
     func.bodyRunner.run(localEnv, cont);
     runTodo();
     return res;
   }
 
 
-  let compErr(): Runner {
+  public compErr(): Runner {
     return new ErrRunner();
   }
 
-  let compLambda(form: Form): Runner {
+  public compLambda(form: Form): Runner {
     var argNames = form.args[0].as<Form>().args.map(fn(s: Tree): String {
       return s.as<Ident>().repr;
     });
@@ -213,13 +211,14 @@ export class Env {
     return new LambdaRunner(argNames, bodyRunner);
   }
 
-  let compCall(form: Form): Runner {
+  public compCall(form: Form): Runner {
     var funcName = form.args[0].as<Ident>().repr;
-    var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {compTree(t)});
+    var self = this;
+    var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {self.compTree(t)});
     return new CallRunner(funcName, args);
   }
 
-  let compForm(form: Form): Runner {
+  public compForm(form: Form): Runner {
     match (form.form) {
       "call" -> compCall(form);
       "lambda" -> compLambda(form);
@@ -227,7 +226,7 @@ export class Env {
     }
   }
 
-  let compTree(tree: Tree): Runner {
+  public compTree(tree: Tree): Runner {
     match (tree) {
       is Form -> compForm(tree.as<Form>());
       is Ident -> new LookupRunner(tree.as<Ident>().repr);
@@ -237,87 +236,101 @@ export class Env {
     }
   }
 
-  let compExternName(name: String): Define {
+  public flush(): Void {
+    let {fromAsciiCode} = import("./ascii.temper");
+    console.log(putCharBuf.join("", fromAsciiCode));
+    putCharBuf = new ListBuilder<Int>();
+  }
+
+  public putchar(c: Int): Void {
+    putCharBuf.add(c);
+  }
+
+  public compExternName(name: String): Define {
+    var self = this;
     match (name) {
-      "equal" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "equal" -> fn(args: List<AnyValue>, k: Cont): Void {
         if (args[0].as<Int>() == args[1].as<Int>()) {
           k(1);
         } else {
           k(0);
         }
       };
-      "above" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "above" -> fn(args: List<AnyValue>, k: Cont): Void {
         if (args[1].as<Int>() < args[0].as<Int>()) {
           k(1);
         } else {
           k(0);
         }
       };
-      "pair" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "pair" -> fn(args: List<AnyValue>, k: Cont): Void {
         k([args[0], args[1]]);
       };
-      "first" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "first" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[0].as<List<AnyValue>>()[0]);
       };
-      "second" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "second" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[0].as<List<AnyValue>>()[1]);
       };
-      "add" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "add" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[1].as<Int>() + args[0].as<Int>());
       };
-      "sub" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "sub" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[1].as<Int>() - args[0].as<Int>());
       };
-      "mul" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "mul" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[1].as<Int>() * args[0].as<Int>());
       };
-      "div" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "div" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[1].as<Int>() / args[0].as<Int>());
       };
-      "mod" ->  fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "mod" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[1].as<Int>() % args[0].as<Int>());
       };
-      "putchar" -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      "putchar" -> fn(args: List<AnyValue>, k: Cont): Void {
         var c = args[0].as<Int>();
         if (c == 10) {
-          let {fromAsciiCode} = import("./ascii.temper");
-          console.log(putCharBuf.join("", fromAsciiCode));
-          putCharBuf = new ListBuilder<Int>();
+          self.flush();
         } else {
-          putCharBuf.add(c);
+          self.putchar(c);
         }
         k(0);
       };
-      "if" ->  fn(ifEnv: LocalScope, args: List<AnyValue>, k: Cont): Void {
-        var func = args[match (args[0]) {0 -> 2; else -> 1}].as<Lambda>();
+      "if" ->  fn(args: List<AnyValue>, k: Cont): Void {
+        var func = match (args[0]) {
+          0 -> args[2].as<Lambda>();
+          else -> args[1].as<Lambda>();
+        };
         func.bodyRunner.run(func.lambdaScope, k);
       };
-      else -> fn(env: LocalScope, args: List<AnyValue>, k: Cont): Void {
+      else -> fn(args: List<AnyValue>, k: Cont): Void {
         k(new Err("no such import: (${name} ...) ?"));
       };
     }
   }
 
-  let compExtern(form: Form): Void {
+  public compExtern(form: Form): Void {
     var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
     var argNames = form.args[1].as<Form>().args.map(fn(x: Tree): String {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
-    var lambda = new Lambda(env, argNames, new DefineRunner(compExternName(name)));
+    var localEnv = new LocalScope(env, [], new ListBuilder<AnyValue>());
+    var lambda = new Lambda(localEnv, argNames, new DefineRunner(compExternName(name)));
     env.add(new Def(name, lambda));
   }
 
-  let compFunc(form: Form): Void {
+  public compFunc(form: Form): Void {
     var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
     var argNames = form.args[1].as<Form>().args.map(fn(x: Tree): String {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
     var bodyRunner = compTree(form.args[2]);
-    var lambda = new Lambda(env, argNames, bodyRunner);
+    var localEnv = new LocalScope(env, [], new ListBuilder<AnyValue>());
+    var lambda = new Lambda(localEnv, argNames, bodyRunner);
     env.add(new Def(name, lambda));
   }
 
-  let compTopForm(form: Form): Void {
+  public compTopForm(form: Form): Void {
     match (form.form) {
       "extern" -> compExtern(form);
       "func" -> compFunc(form);
@@ -325,7 +338,7 @@ export class Env {
     }
   }
 
-  let compProgram(tree: Tree): Void {
+  public compProgram(tree: Tree): Void {
     var form = tree.as<Form>();
     for (var i = 0; i < form.args.length; i++) {
       compTopForm(form.args[i].as<Form>());
