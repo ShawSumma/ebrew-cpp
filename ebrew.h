@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+typedef struct {
+    char *name;
+    size_t value;
+} eb_env_entry_t;
+size_t eb_env_len;
+eb_env_entry_t eb_env[256] = {0};
 size_t ebz_putchar(size_t c)
 {
     putchar((int)c);
@@ -26,6 +32,52 @@ size_t eb_pair(size_t a1, size_t a2, size_t a3) { return ebz_pair(a2, a3); }
 size_t eb_first(size_t a1, size_t a2) { return ebz_first(a2); }
 size_t eb_second(size_t a1, size_t a2) { return ebz_second(a2); }
 size_t eb_if(size_t a1, size_t a2, size_t a3, size_t a4) { return ebz_if(a2, a3, a4); }
+size_t eb_get_DASH_env(size_t a1, size_t env) {
+    char name[256];
+    char *s = name;
+    while (env)
+    {
+        *s++ = ebz_first(env);
+        env = ebz_second(env);
+    }
+    *s++ = 0;
+    for (size_t i = 0; i < eb_env_len; i++) {
+        if (!strcmp(name, eb_env[i].name)) {
+            return eb_env[i].value;
+        }
+    }
+    return 0;
+}
+size_t eb_set_DASH_env(size_t a1, size_t env, size_t val) {
+    char *s = malloc(sizeof(char) * 256);
+    char *name = s;
+    while (env)
+    {
+        *s++ = ebz_first(env);
+        env = ebz_second(env);
+    }
+    *s++ = 0;
+    for (size_t i = 0; i < eb_env_len; i++) {
+        if (!strcmp(name, eb_env[i].name)) {
+            eb_env[i].value = val;
+            free(name);
+            return 0;
+        }
+    }
+    eb_env[eb_env_len++] = (eb_env_entry_t){.name = name, .value = val};
+    return 0;
+}
+size_t eb_box_DASH_of(size_t a1, size_t v) {
+    size_t *ret = malloc(sizeof(size_t));
+    *ret = v;
+    return (size_t) ret;
+}
+size_t eb_box_DASH_set(size_t a1, size_t b, size_t v) {
+    return *(size_t *)b = v;
+}
+size_t eb_box_DASH_get(size_t a1, size_t b) {
+    return *(size_t *)b;
+}
 size_t eb_add(size_t a1, size_t r, size_t l) { return l + r; }
 size_t eb_sub(size_t a1, size_t r, size_t l) { return l - r; }
 size_t eb_mul(size_t a1, size_t r, size_t l) { return l * r; }
@@ -77,16 +129,19 @@ void *ebz_alloc(size_t n)
 {
     size_t head = ebz_alloc_head;
     ebz_alloc_head += n;
-    if (ebz_alloc_head >= ebz_alloc_alloc) {
+    if (ebz_alloc_head >= ebz_alloc_alloc)
+    {
         ebz_alloc_alloc = ebz_alloc_head * 4 + (1 << 12);
         ebz_alloc_mem = malloc(sizeof(size_t) * ebz_alloc_alloc);
     }
     return &ebz_alloc_mem[head];
 }
-size_t ebz_alloc_get_size(void) {
+size_t ebz_alloc_get_size(void)
+{
     return ebz_alloc_head;
 }
-void ebz_alloc_set_size(size_t n) {
+void ebz_alloc_set_size(size_t n)
+{
     // ebz_alloc_head = n;
 }
 size_t eb_main(size_t c, size_t a1);

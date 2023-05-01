@@ -7,6 +7,12 @@ var hasTodo = false;
 var todoArg: AnyValue = 0;
 var todoCont: Cont = fn(v: AnyValue): Void {}
 
+let request(cont: Cont, arg: AnyValue): Void {
+  todoCont = cont;
+  todoArg = arg;
+  hasTodo = true;
+}
+
 let runTodo(): Void {
   while (hasTodo) {
     hasTodo = false;
@@ -84,9 +90,7 @@ class LookupRunner extends Runner {
   public name: String;
 
   public run(env: LocalScope, cont: Cont): Void {
-    todoCont = cont;
-    todoArg = env.lookup(name);
-    hasTodo = true;
+    request(cont, env.lookup(name));
   }
 }
 
@@ -111,9 +115,7 @@ class LambdaRunner extends Runner {
   public bodyRunner: Runner;
   
   public run(env: LocalScope, cont: Cont): Void {
-    todoCont = cont;
-    todoArg = new Lambda(env, argNames, bodyRunner);
-    hasTodo = true;
+    request(cont, new Lambda(env, argNames, bodyRunner));
   }
 }
 
@@ -122,17 +124,17 @@ class CallRunner extends Runner {
   public args: List<Runner>;
 
   public run(env: LocalScope, cont: Cont): Void {
-    let {lambdaScope, argNames, bodyRunner} = env.lookup(funcName).as<Lambda>();
+    let func = env.lookup(funcName).as<Lambda>();
     var scopeArgs = new ListBuilder<AnyValue>();
-    if (argNames.length == 0) {
-      bodyRunner.run(new LocalScope(lambdaScope, argNames, scopeArgs), cont);
+    if (func.argNames.length == 0) {
+      func.bodyRunner.run(new LocalScope(func.lambdaScope, func.argNames, scopeArgs), cont);
     } else {
       let self = this;
 
       let more(v: AnyValue): Void {
         scopeArgs.add(v);
         if (scopeArgs.length == self.args.length) {
-          bodyRunner.run(new LocalScope(lambdaScope, argNames, scopeArgs), cont);
+          func.bodyRunner.run(new LocalScope(func.lambdaScope, func.argNames, scopeArgs), cont);
         } else {
           self.args[scopeArgs.length].run(env, more);
         }
@@ -147,9 +149,7 @@ class ValueRunner extends Runner {
   public value: AnyValue;
 
   public run(env: LocalScope, cont: Cont): Void {
-    todoCont = cont;
-    todoArg = value;
-    hasTodo = true;
+    request(cont, value);
   }
 }
 
@@ -264,7 +264,7 @@ export class Env {
         }
       };
       "pair" -> fn(args: List<AnyValue>, k: Cont): Void {
-        k([args[0], args[1]]);
+        k(args);
       };
       "first" ->  fn(args: List<AnyValue>, k: Cont): Void {
         k(args[0].as<List<AnyValue>>()[0]);
