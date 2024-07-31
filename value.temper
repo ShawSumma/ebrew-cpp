@@ -1,0 +1,250 @@
+
+///////////////////////
+// Stackless Runners //
+///////////////////////
+
+export let Cont = fn(Value): Void;
+var hasTodo = false;
+var todoArg: Value = Value.int(0);
+let todoContBase(v: Value): Void {}
+var todoCont: Cont = todoContBase;
+
+export let request(cont: Cont, arg: Value): Void {
+  todoCont = cont;
+  todoArg = arg;
+  hasTodo = true;
+}
+
+export let runTodo(): Void {
+  var n = 0;
+  while (hasTodo) {
+    // console.log(n.toString());
+    n += 1;
+    hasTodo = false;
+    todoCont(todoArg);
+  }
+}
+
+////////////
+// Scopes //
+////////////
+export class Def {
+  public key: String;
+  public value: Value;
+}
+
+export interface Scope {
+  public lookup(name: String): Value;
+  public toString(): String;
+}
+
+export class GlobalScope extends Scope {
+  public vars: ListBuilder<Def>;
+
+  public lookup(name: String): Value {
+    for (var i = vars.length-1; i >= 0; i--) {
+      if (vars[i].key == name) {
+        return vars[i].value;
+      }
+    }
+    return Value.error();
+  }
+
+  public add(def: Def): Void {
+    vars.add(def);
+  }
+
+  public toString(): String {
+    return "{...}";
+  }
+}
+
+export class LocalScope extends Scope {
+  public next: Scope;
+  public keys: List<String>;
+  public values: ListBuilder<Value>;
+
+  public lookup(name: String): Value {
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] == name) {
+        return values[i];
+      }
+    }
+    return next.lookup(name);
+  }
+
+  public toString(): String {
+    var my = keys.join(" ", fn(s: String):String{s});
+    return "{${my}} ${next.toString()}"
+  }
+}
+
+/////////////
+// Runners //
+/////////////
+
+export interface Runner {
+  public run(env: LocalScope, cont: Cont): Void;
+}
+
+export class ErrRunner extends Runner {}  
+
+export class LookupRunner extends Runner {
+  public name: String;
+
+  public run(env: LocalScope, cont: Cont): Void {
+    request(cont, env.lookup(name));
+  }
+}
+
+export const Define = fn(List<Value>, Cont): Void;
+
+export class DefineRunner extends Runner {
+  public callback: Define;
+
+  public run(env: LocalScope, cont: Cont): Void {
+    callback(env.values.toList(), cont);
+  }
+}
+
+export class LambdaRunner extends Runner {
+  public params: List<String>;
+  public body: Runner;
+  
+  public run(env: LocalScope, cont: Cont): Void {
+    request(cont, Value.lambda(env, params, body));
+  }
+}
+
+export class CallRunner extends Runner {
+  public funcName: String;
+  public args: List<Runner>;
+
+  public run(env: LocalScope, cont: Cont): Void {
+    let func = env.lookup(funcName).asLambda();
+    var scopeArgs = new ListBuilder<Value>();
+    if (func.params.length == 0) {
+      func.body.run(new LocalScope(func.scope, func.params, scopeArgs), cont);
+    } else {
+      let self = this;
+
+      let more(v: Value): Void {
+        scopeArgs.add(v);
+        if (scopeArgs.length == self.args.length) {
+          func.body.run(new LocalScope(func.scope, func.params, scopeArgs), cont);
+        } else {
+          self.args[scopeArgs.length].run(env, more);
+        }
+      }
+
+      self.args[0].run(env, more);
+    }
+  }
+}
+
+export class ValueRunner extends Runner {
+  public value: Value;
+
+  public run(env: LocalScope, cont: Cont): Void {
+    request(cont, value);
+  }
+}
+
+export class Err {
+  public msg: String;
+
+  constructor(err: String) {
+    console.log(err);
+    msg = err;
+  }
+}
+
+////////////
+// Values //
+////////////
+
+export interface Value {
+  public static int(n: Int): Value {
+    return new ValueInt(n);
+  }
+
+  public static cons(l: Value, r: Value): Value {
+    return new Cons(l, r);
+  }
+
+  public static lambda(scope: LocalScope, args: List<String>, body: Runner): Value {
+    return new Lambda(scope, args, body);
+  }
+
+  public static string(id: String): Value {
+    var ret: Value = Value.int(0);
+    var parts = id.split("");
+    for (var i = parts.length - 1; i >= 0; i--) {
+      ret = Value.cons(Value.int(parts[i].codeAt(String.start)), ret);
+    }
+    return ret;
+  }
+
+  public static error(): Value {
+    bubble();
+    return Value.error();
+  }
+
+  public asInt(): Int;
+  public asCons(): Cons;
+  public asLambda(): Lambda;
+
+  public isZero(): Boolean;
+  public toString(): String;
+}
+
+export class Cons extends Value {
+  public first: Value;
+  public second: Value;
+
+  public isZero(): Boolean {
+    return false;
+  }
+
+  public asCons(): Cons {
+    return this;
+  }
+
+  public toString(): String {
+    return "cons ${first.toString()} ${second.toString()}";
+  }
+}
+
+export class Lambda extends Value {
+  public scope: LocalScope;
+  public params: List<String>;
+  public body: Runner;
+
+  public isTrue(): Boolean {
+    return false;
+  }
+
+  public asLambda(): Lambda {
+    return this;
+  }
+
+  public toString(): String {
+    return "lambda ...";
+  }
+}
+
+class ValueInt extends Value {
+  public value: Int;
+
+  public isZero(): Boolean {
+    return value == 0;
+  }
+  
+  public asInt(): Int {
+    return value;
+  }
+
+  public toString(): String {
+    return value.toString();
+  }
+}

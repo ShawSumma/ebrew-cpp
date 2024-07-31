@@ -1,4 +1,5 @@
 
     export let name = "ebb";
-    import("./src/parser.temper");
-    import("./src/comp.temper");
+    import("./interp.temper");
+    import("./value.temper");
+    import("./parser.temper");

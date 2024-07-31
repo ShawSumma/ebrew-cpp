@@ -113,11 +113,11 @@ class Binding {
 
 let parseInt(s: String): Int {
   var ret = 0;
-  var code = s.codePoints;
-  while (!code.isEmpty) {
+  var code = String.start;
+  while (s.codeAt(code) != 0) {
     ret *= 10;
-    ret += code.read() - 48;
-    code = code.advance(1);
+    ret += s.codeAt(code) - 48;
+    code = s.next(code);
   }
   return ret;
 }
@@ -126,8 +126,15 @@ let isSpaceChar(s: String): Boolean {
   return s == " " || s == "\t" || s == "\r" || s == "\n";
 }
 
+let charInRange(s: String, az: String): Boolean {
+  var low = az.codeAt(String.start);
+  var mid = s.codeAt(String.start);
+  var high = az.codeAt(az.next(String.start));
+  return low <= mid && mid <= high;
+}
+
 let isWordChar(s: String): Boolean {
-  return ("0" <= s && s <= "9") ||  ("a" <= s && s <= "z") ||  ("A" <= s && s <= "Z") || s == "-" || s == "_";
+  return charInRange(s, "09") ||  (charInRange(s, "az")) ||  (charInRange(s, "AZ")) || s == "-" || s == "_";
 }
 
 let canFind(s: List<String>, v: String): Boolean {
@@ -309,7 +316,7 @@ export class Parser {
       if (state.first() == "\'") {
         state.skip();
       }
-      return new Number(c.codePoints.read());
+      return new Number(c.codeAt(String.start));
     }
     if (state.first() == "\"") {
       state.skip();
@@ -325,8 +332,8 @@ export class Parser {
       err('expected expression');
     }
     var res: Tree = new Ident("?");
-    var split = name.split("")[0];
-    if ("0" <= split && split <= "9") {
+    var split = String.fromCodePoint(name.codeAt(String.start));
+    if (charInRange(split, "09")) {
         res = new Number(parseInt(name));
     } else {
         res = readCall(name);

@@ -1,19 +1,16 @@
-import logging
 import sys
-import faulthandler
-import glob
 import os
-
-dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-faulthandler.enable(file=sys.stderr, all_threads=True)
+import logging
 
 logging.basicConfig(filename="/dev/stdout", level=logging.DEBUG, format="%(message)s")
 
-for path in glob.glob(f'{dir}/temper.out/*/py'):
-    sys.path.append(path)
+dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-from ebb.src.comp import Env
+sys.path.append('temper.out/py/temper-core')
+sys.path.append('temper.out/py/ebb')
+
+from ebb.interp import Env
+from ebb.value import Value
 
 def read(name):
     with open(name) as f:
@@ -31,4 +28,5 @@ if len(sys.argv) <= 2:
     src = ebbfile
 else:
     src = read(sys.argv[2])
-env.call("main-lang", (lang, src))
+env.call("main-lang", (Value.string(lang), Value.string(src)))
+env.flush()

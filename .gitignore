@@ -11,3 +11,6 @@ err.txt
 build
 __pycache__
 .mypy_cache
+ebrew.js
+ebrew.mjs
+ebrew.c

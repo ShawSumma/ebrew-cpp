@@ -1,6 +1,6 @@
 import {argv} from 'process';
 import {readFile} from 'fs/promises';
-import {Env} from '../temper.out/ebb/js/src/comp.js';
+import {Env} from '../temper.out/js/ebb/interp.js';
 import {URL} from 'url';
 
 const main = async () => {
