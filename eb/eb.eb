@@ -610,11 +610,11 @@ if  str-eq name first first defs
 
 (compile-ast-str str)
 if  str
-    do  put-str "ebz_stol("
+    do  put-str "({ static size_t mem = 0; ebz_stol(&mem, "
     do  putchar '"
     do  put-str str
     do  putchar '"
-        put-str ")"
+        put-str "); })"
     put-num 0
 
 (compile-str str)
@@ -647,11 +647,8 @@ if  ast-is-call tree
                 el
                 compile tree path defs
                 do  path
-                if  above 16 n
+                do  put-str "_"
                     put-num n
-                    do  put-str "_"
-                    do  put-num div 16 n
-                        put-num mod 16 n
                 defs
             add 1 n
 if  ast-is-lambda tree
@@ -675,24 +672,34 @@ if  ast-is-lambda tree
         do  put-str ","
         do  put-str "size_t "
             compile-str second arg
-    do  put-str "){return "
-    do  compile second second tree path defs
+    do  put-str "){"
+    let name compile second second tree path defs
+    do  put-str "return "
+    do  put-str name
+    do  path
     do  put-str ";}"
         put-line
     0
 
 (compile-ast-path tree (path) defs)
 if  ast-is-str tree
-    compile-ast-str second tree
+    do  put-str "size_t s"
+    do  path
+    do  put-str "="
+    do  compile-ast-str second tree
+    do  put-str ";"
+        "s"
 if  ast-is-function tree
+    let args second second first second tree
+    let name second first second first second tree
     let defs 
         fold xdefs arg
-             0    second second first second tree
+             0     args
             defs-append xdefs second arg pair 0 second arg
     do  put-str "size_t "
-    do compile-str second first second first second tree
+    do compile-str name
     do  put-str "(size_t c"
-    do  for arg second second first second tree
+    do  for arg args
         do  put-str ","
         do  put-str "size_t "
             compile-str second arg
@@ -700,17 +707,20 @@ if  ast-is-function tree
     do  put-line
     do  pre-compile-ast second second tree compile-ast-path tree path defs compile-str second first second first second tree defs
     do  put-str "size_t "
-    do  compile-str second first second first second tree
+    do  compile-str name
     do  put-str "(size_t c"
-    do  for arg second second first second tree
+    do  for arg args
         do  put-str ","
         do  put-str "size_t "
             compile-str second arg
-    do  put-str "){size_t n=ebz_alloc_get_size();"
-    do  put-str "size_t r="
-    do  compile-ast-path second second tree compile-str second first second first second tree defs
-    do  put-str ";ebz_alloc_set_size(n);return r;}"
-        put-line
+    do  put-str "){"
+    let ret
+        compile-ast-path second second tree compile-str name defs
+    do  put-str "return "
+    do  put-str ret
+    do  compile-str name
+    do  put-str ";}"
+        "__ERROR__"
 if  ast-is-lambda tree
     let d0 defs
     let defs second
@@ -723,86 +733,150 @@ if  ast-is-lambda tree
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    do  put-str "({size_t *o=ebz_alloc("
-    do  put-num add 1 length d0
-    do  put-str ");o[0]=(size_t)"
+    do  if  0
+            do  put-str "size_t l"
+            do  path
+            do  put-str "["
+            do  put-num add 1 length d0
+                put-str "];"
+            do  put-str "size_t *l"
+            do  path
+            do  put-str "="
+            do  put-str "ebz_alloc("
+            do  put-num add 1 length d0
+                put-str ");"
+    do put-str "l"
+    do  path
+    do  put-str "[0]=(size_t)"
     do  put-str "ebl_"
     do  path
     do  put-str ";"
     do  fold n def
              0 d0
-        do  put-str "o["
+        do  put-str "l"
+        do  path
+        do  put-str "["
         do  put-num add 1 n 
         do  put-str "]="
         do  compile-found second def
         do  put-str ";"
             add 1 n
-        put-str "(size_t)o;})"
+        "(size_t)l"
 if  ast-is-call tree
-let func first second tree
-if  and ast-is-name func
-        not defs-lookup defs second func
-    do  put-str "({"
-    do  fold n el
-            0 list-reverse second second tree
-            do  put-str "size_t v"
-            do  put-num n
-            do  put-str "="
-            do  compile-ast-path el do path
-                    if  above 16 n
-                        put-num n
+    let func first second tree
+    if  and ast-is-name func
+            not defs-lookup defs second func
+        do  fold n el
+                0 list-reverse second second tree
+                let v compile-ast-path
+                        el
+                        do  path
                         do  put-str "_"
-                        do  put-num div 16 n
-                            put-num mod 16 n
-                    defs
-            do  put-str ";"
-                add 1 n
-    do  compile-str second func
-    do  put-str "(0"
-    do  fold n el
-            0 second second tree
-            do  put-str ",v"
-            do  put-num n
-            add 1 n
-        put-str ");})"
-    do  put-str "({size_t f="
-    do  compile-ast-path first second tree path defs
-    do  put-str ";"
-    do  fold n el
-            0 list-reverse second second tree
-            do  put-str "size_t v"
-            do  put-num n
-            do  put-str "="
-            do  compile-ast-path el do path
-                    if  above 16 n
-                        put-num n
-                        do  put-str "_"
-                        do  put-num div 16 n
-                            put-num mod 16 n
-                    defs
-            do  put-str ";"
-                add 1 n
-    do  put-str "((size_t(*)(size_t"
-    do  fold n el
-             0 second second tree
-            put-str ",size_t"
-    do  put-str"))(*(size_t*)f))(f"
-    do  fold n el
-             0 second second tree
-            do  put-str ",v"
-            do  put-num n
-            add 1 n
-        put-str ");})"
+                            put-num n
+                        defs
+                do  put-str "size_t v"
+                do  put-num n
+                do  path
+                do  put-str "="
+                do  put-str v
+                do  path
+                do  put-str "_"
+                do  put-num n
+                do  put-str ";"
+                    add 1 n
+        do  put-str "size_t i"
+        do  path
+        do  put-str "="
+        do  compile-str second func
+        do  put-str "(0"
+        do  fold n el
+                0 second second tree
+                do  put-str ",v"
+                do  put-num n
+                do  path
+                    add 1 n
+        do  put-str ");"
+            "i"
+        let f
+            compile-ast-path
+                first second tree
+                do  path
+                do  put-str "_"
+                    put-str "f"
+                defs
+        do  put-str "size_t f"
+        do  path
+        do  put-str "="
+        do  do  put-str f
+            do  path
+            do  put-str "_"
+                put-str "f"
+        do  put-str ";"
+        do  fold n el
+                0 list-reverse second second tree
+                let v compile-ast-path
+                        el
+                        do path
+                        do put-str "_"
+                            put-num n
+                        defs
+                do  put-str "size_t v"
+                do  put-num n
+                do  path
+                do  put-str "="
+                do  put-str v
+                do  path
+                do  put-str "_"
+                do  put-num n
+                do  put-str ";"
+                    add 1 n
+        do  put-str "size_t i"
+        do  path
+        do  put-str "=((size_t(*)(size_t"
+        do  fold n el
+                0 second second tree
+                put-str ",size_t"
+        do  put-str "))(*(size_t*)"
+        do  do  put-str f
+            do  path
+            do  put-str "_"
+                put-str "f"
+        do  put-str "))("
+        do  do  put-str f
+            do  path
+            do  put-str "_"
+                put-str "f"
+        do  fold n el
+                0 second second tree
+                do  put-str ",v"
+                do  put-num n
+                do  path
+                    add 1 n
+        do  put-str ");"
+            "i"
 if  ast-is-number tree
-    put-num second tree
+    do  put-str "size_t n"
+    do  path
+    do  put-str "="
+    do  put-num second tree
+    do  put-str ";"
+        "n"
 if  ast-is-name tree
     let found defs-lookup defs second tree
-        if found
-            compile-found found
-            do  put-str "({static size_t f=(size_t)&"
-            do  compile-str second tree
-                put-str ";&f;})"
-    0
+    if  found
+        do  put-str "size_t w"
+        do  path
+        do  put-str "="
+        do  compile-found found
+        do  put-str ";"
+            "w"
+        do  put-str "size_t w"
+        do  path
+        do  put-str "="
+        do  compile-str second tree
+        do  put-str ";"
+            "w"
+    "__ERROR__"
 
 (compile-js-extern str)
 if  str-eq str "putchar"     put-str "c=>process.stdout.write(String.fromCharCode(c))"

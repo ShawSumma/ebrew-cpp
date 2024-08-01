@@ -3,14 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint8_t ebz_mem[1 << 28];
-static uint8_t *ebz_alloc_mem = &ebz_mem[0];
-static size_t ebz_alloc_head = 0;
-static size_t ebz_alloc_alloc = 0;
+static size_t ebz_alloc_total = 0;
 static inline void *ebz_alloc_bytes(size_t size) {
-    size_t head = ebz_alloc_head;
-    ebz_alloc_head += size;
-    return &ebz_mem[head];
+    ebz_alloc_total += size;
+    return malloc(size);
 }
 static inline size_t *ebz_alloc(size_t n) {
     return ebz_alloc_bytes(sizeof(size_t) * n);
@@ -27,132 +23,16 @@ enum {
     EBZ_TAG_MAX = 4,
 };
 static inline size_t ebz_pair(size_t a, size_t b) {
-    uint8_t buf[16];
-    size_t size = 1;
-    uint8_t tag = 0;
-    if (b <= UINT8_MAX) {
-        tag += EBZ_TAG_B1;
-        uint8_t v = b;
-        memcpy(&buf[size], &v, 1);
-        size += 1;
-    } else if (b <= UINT16_MAX) {
-        tag += EBZ_TAG_B2;
-        uint16_t v = b;
-        memcpy(&buf[size], &v, 2);
-        size += 2;
-    } else if (b <= UINT32_MAX) {
-        tag += EBZ_TAG_B4;
-        uint32_t v = b;
-        memcpy(&buf[size], &v, 4);
-        size += 4;
-    } else {
-        tag += EBZ_TAG_PTR;
-        ptrdiff_t diff = (uint8_t *) b - &ebz_mem[0];
-        printf("b = (ptr %zi)\n", diff);
-        uint32_t v =  (uint32_t) diff;
-        memcpy(&buf[size], &v, 4);
-        size += 4;
-    }
-    tag *= EBZ_TAG_MAX;
-    if (a < UINT8_MAX) {
-        tag += EBZ_TAG_B1;
-        uint8_t v = a;
-        memcpy(&buf[size], &v, 1);
-        size += 1;
-    } else if (a < UINT16_MAX) {
-        tag += EBZ_TAG_B2;
-        uint16_t v = a;
-        memcpy(&buf[size], &v, 2);
-        size += 2;
-    } else if (a < UINT32_MAX) {
-        tag += EBZ_TAG_B4;
-        uint32_t v = a;
-        memcpy(&buf[size], &v, 4);
-        size += 4;
-    } else {
-        tag += EBZ_TAG_PTR;
-        ptrdiff_t diff = (uint8_t *) a - &ebz_mem[0];
-        printf("a = (ptr %zi)\n", diff);
-        uint32_t v =  (uint32_t) diff;
-        memcpy(&buf[size], &v, 4);
-        size += 4;
-    }
-    buf[0] = tag;
-    size_t head = ebz_alloc_head;
-    ebz_alloc_head += size;
-    uint8_t *ret = &ebz_mem[head];
-    memcpy(ret, buf, size);
-    printf("tag(cons => %p+%zu) = %zu :: %zu\n", ret, size, (size_t) tag % EBZ_TAG_MAX, (size_t) tag / EBZ_TAG_MAX % EBZ_TAG_MAX);
-    return (size_t) ret;
+    size_t *pair = ebz_alloc(2);
+    pair[0] = a;
+    pair[1] = b;
+    return (size_t) pair;
 }
 static inline size_t ebz_first(size_t p) {
-    uint8_t *buf = (uint8_t *)p;
-    uint8_t tag = *buf++;
-    printf("tag(first %p) = %zu :: %zu\n", (void *)p, (size_t) tag % EBZ_TAG_MAX, (size_t) tag / EBZ_TAG_MAX % EBZ_TAG_MAX);
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B1) {
-        uint8_t ret;
-        memcpy(&ret, buf, 1);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B2) {
-        uint16_t ret;
-        memcpy(&ret, buf, 2);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B4) {
-        uint32_t ret;
-        memcpy(&ret, buf, 4);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_PTR) {
-        uint32_t offset;
-        memcpy(&offset, buf, 4);
-        return (size_t) &ebz_mem[offset];
-    }
-    __builtin_trap();
+    return ((size_t *)p)[0];
 }
 static inline size_t ebz_second(size_t p) {
-    uint8_t *buf = (uint8_t *)p;
-    uint8_t tag = *buf++;
-    printf("tag(second %p) = %zu :: %zu\n", (void *)p, (size_t) tag % EBZ_TAG_MAX, (size_t) tag / EBZ_TAG_MAX % EBZ_TAG_MAX);
-    printf("buf = %p\n", buf);
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B1) {
-        buf += 1;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B2) {
-        buf += 2;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_B4) {
-        buf += 4;
-    }
-    if (tag % EBZ_TAG_MAX == EBZ_TAG_PTR) {
-        buf += 4;
-    }
-    printf("buf = %p\n", buf);
-    tag /= EBZ_TAG_MAX;
-    if (tag % EBZ_TAG_MAX >= EBZ_TAG_B1) {
-        uint8_t ret;
-        memcpy(&ret, buf, 1);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX >= EBZ_TAG_B2) {
-        uint16_t ret;
-        memcpy(&ret, buf, 2);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX >= EBZ_TAG_B4) {
-        uint32_t ret;
-        printf("buf = %p\n", buf);
-        memcpy(&ret, buf, 4);
-        printf("ret = %zu\n", (size_t) ret);
-        return (size_t) ret;
-    }
-    if (tag % EBZ_TAG_MAX >= EBZ_TAG_PTR) {
-        uint32_t offset;
-        memcpy(&offset, buf, 4);
-        return (size_t) &ebz_mem[offset];
-    }
-    __builtin_trap();
+    return ((size_t *)p)[1];
 }
 static inline size_t ebz_if(size_t c, size_t t, size_t e) {
     if (c) {
@@ -226,6 +106,6 @@ int main(int argc, char **argv) {
         a = ebz_pair(ebz_stol(&next, c), a);
     }
     int got = (int)eb_main(0, a);
-    printf("alloc: %zu\n", ebz_alloc_head);
+    // printf("alloc: %zu\n", ebz_alloc_total);
     return got;
 }

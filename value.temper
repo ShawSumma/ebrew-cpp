@@ -5,7 +5,7 @@
 
 export let Cont = fn(Value): Void;
 var hasTodo = false;
-var todoArg: Value = Value.int(0);
+var todoArg: Value;
 let todoContBase(v: Value): Void {}
 var todoCont: Cont = todoContBase;
 

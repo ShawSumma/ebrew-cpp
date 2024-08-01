@@ -18,15 +18,11 @@ def read(name):
 
 env = Env()
 
-ebfile = read(f"{dir}/eb/eb.eb")
+ebfile = read(sys.argv[1])
 env.source(ebfile)
-if len(sys.argv) <= 1:
-    lang = 'c'
-else:
-    lang = sys.argv[1]
-if len(sys.argv) <= 2:
-    src = ebfile
-else:
-    src = read(sys.argv[2])
-env.call("main-lang", (Value.string(lang), Value.string(src)))
+args = Value.int(0)
+for i in reversed(sys.argv[2:]):
+    args = Value.cons(i, Value.string(args))
+r = env.call("main", (args,))
 env.flush()
+# print(r.to_string())

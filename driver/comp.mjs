@@ -1,15 +1,15 @@
 import {argv} from 'process';
 import {readFile} from 'fs/promises';
-import {Env} from '../temper.out/js/ebb/interp.js';
+import {Env} from '../temper.out/js/eb/interp.js';
 import {URL} from 'url';
 
 const main = async () => {
     const env = new Env();
 
-    const ebbFile = readFile(new URL('../ebb/ebb.ebb', import.meta.url));
-    const srcFile = argv[3] == null ? ebbFile : readFile(argv[3]);
+    const ebFile = readFile(new URL('../eb/eb.eb', import.meta.url));
+    const srcFile = argv[3] == null ? ebFile : readFile(argv[3]);
 
-    env.source(String(await ebbFile));
+    env.source(String(await ebFile));
 
     env.call("main-lang", [argv[2] ?? "c", String(await srcFile)]);
 };
