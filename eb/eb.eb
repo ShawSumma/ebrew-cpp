@@ -608,15 +608,6 @@ if  str-eq name first first defs
     second first defs
     defs-lookup second defs name
 
-(compile-ast-str str)
-if  str
-    do  put-str "({ static size_t mem = 0; ebz_stol(&mem, "
-    do  putchar '"
-    do  put-str str
-    do  putchar '"
-        put-str "); })"
-    put-num 0
-
 (compile-str str)
 do  put-str "eb_"
 for c str
@@ -683,12 +674,23 @@ if  ast-is-lambda tree
 
 (compile-ast-path tree (path) defs)
 if  ast-is-str tree
-    do  put-str "size_t s"
-    do  path
-    do  put-str "="
-    do  compile-ast-str second tree
-    do  put-str ";"
-        "s"
+    let str second tree
+    if  str
+        do  put-str "size_t s"
+        do  path
+        do  put-str "=0;"
+        do  put-str "ebz_stol(&s"
+        do  path
+        do  put-str ","
+        do  putchar '"
+        do  put-str str
+        do  putchar '"
+        do  put-str ");"
+            "s"
+        do  put-str "size_t s"
+        do  path
+        do  put-str "=0;"
+            "s"
 if  ast-is-function tree
     let args second second first second tree
     let name second first second first second tree
