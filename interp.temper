@@ -2,14 +2,13 @@
 let {...} = import("./parser.temper");
 let {...} = import("./value.temper");
 
-
 export class Env {
   public env: GlobalScope;
   public parser: Parser;
   var putCharBuf: ListBuilder<Int>;
 
   public constructor() {
-    env = new GlobalScope(new ListBuilder<Def>());
+    env = new GlobalScope(new MapBuilder<String, Value>());
     parser = new Parser("");
     putCharBuf = new ListBuilder<Int>();
   }
@@ -20,13 +19,17 @@ export class Env {
     compProgram(prog);
   }
 
-  public call(name: String, args: List<Value>): Value {
+  public call(name: String, args: Listed<Value>): Value {
     var func = env.lookup(name).asLambda();
-    var res: Value = Value.int(0);
+    var res: Value = number(0);
     var cont = fn(v: Value): Void {
       res = v;
     };
-    var localEnv = new LocalScope(func.scope, func.params, args.toListBuilder());
+    var envData = new MapBuilder<String, Value>();
+    for (var i = 0; i < func.params.length; i++) {
+      envData[func.params[i]] = args[i];
+    }
+    var localEnv = new LocalScope(func.scope, func.params, envData);
     func.body.run(localEnv, cont);
     runTodo();
     return res;
@@ -64,8 +67,8 @@ export class Env {
     match (tree) {
       is Form -> compForm(tree.as<Form>());
       is Ident -> new LookupRunner(tree.as<Ident>().repr);
-      is Number -> new ValueRunner(Value.int(tree.as<Number>().repr));
-      is Text -> new ValueRunner(Value.string(tree.as<Text>().repr));
+      is Number -> new ValueRunner(number(tree.as<Number>().repr));
+      is Text -> new ValueRunner(string(tree.as<Text>().repr));
       else -> compErr();
     }
   }
@@ -84,54 +87,54 @@ export class Env {
   public compExternName(name: String): Define {
     var self = this;
     match (name) {
-      "equal" -> fn(args: List<Value>, k: Cont): Void {
+      "equal" -> fn(args: Listed<Value>, k: Cont): Void {
         if (args[0].asInt() == args[1].asInt()) {
-          k(Value.int(1));
+          k(number(1));
         } else {
-          k(Value.int(0));
+          k(number(0));
         }
       };
-      "above" -> fn(args: List<Value>, k: Cont): Void {
+      "above" -> fn(args: Listed<Value>, k: Cont): Void {
         if (args[1].asInt() < args[0].asInt()) {
-          k(Value.int(1));
+          k(number(1));
         } else {
-          k(Value.int(0));
+          k(number(0));
         }
       };
-      "pair" -> fn(args: List<Value>, k: Cont): Void {
-        k(Value.cons(args[0], args[1]));
+      "pair" -> fn(args: Listed<Value>, k: Cont): Void {
+        k(cons(args[0], args[1]));
       };
-      "first" ->  fn(args: List<Value>, k: Cont): Void {
+      "first" ->  fn(args: Listed<Value>, k: Cont): Void {
         k(args[0].asCons().first);
       };
-      "second" ->  fn(args: List<Value>, k: Cont): Void {
+      "second" ->  fn(args: Listed<Value>, k: Cont): Void {
         k(args[0].asCons().second);
       };
-      "add" ->  fn(args: List<Value>, k: Cont): Void {
-        k(Value.int(args[1].asInt() + args[0].asInt()));
+      "add" ->  fn(args: Listed<Value>, k: Cont): Void {
+        k(number(args[1].asInt() + args[0].asInt()));
       };
-      "sub" ->  fn(args: List<Value>, k: Cont): Void {
-        k(Value.int(args[1].asInt() - args[0].asInt()));
+      "sub" ->  fn(args: Listed<Value>, k: Cont): Void {
+        k(number(args[1].asInt() - args[0].asInt()));
       };
-      "mul" ->  fn(args: List<Value>, k: Cont): Void {
-        k(Value.int(args[1].asInt() * args[0].asInt()));
+      "mul" ->  fn(args: Listed<Value>, k: Cont): Void {
+        k(number(args[1].asInt() * args[0].asInt()));
       };
-      "div" ->  fn(args: List<Value>, k: Cont): Void {
-        k(Value.int(args[1].asInt() / args[0].asInt()));
+      "div" ->  fn(args: Listed<Value>, k: Cont): Void {
+        k(number(args[1].asInt() / args[0].asInt()));
       };
-      "mod" ->  fn(args: List<Value>, k: Cont): Void {
-        k(Value.int(args[1].asInt() % args[0].asInt()));
+      "mod" ->  fn(args: Listed<Value>, k: Cont): Void {
+        k(number(args[1].asInt() % args[0].asInt()));
       };
-      "putchar" -> fn(args: List<Value>, k: Cont): Void {
+      "putchar" -> fn(args: Listed<Value>, k: Cont): Void {
         var c = args[0].asInt();
         if (c == 10) {
           self.flush();
         } else {
           self.putchar(c);
         }
-        k(Value.int(0));
+        k(number(0));
       };
-      "if" ->  fn(args: List<Value>, k: Cont): Void {
+      "if" ->  fn(args: Listed<Value>, k: Cont): Void {
         var func = if (!args[0].isZero()) {
           args[1].asLambda()
         } else {
@@ -139,7 +142,7 @@ export class Env {
         };
         func.body.run(func.scope, k);
       };
-      else -> fn(args: List<Value>, k: Cont): Void {
+      else -> fn(args: Listed<Value>, k: Cont): Void {
         bubble();
       };
     }
@@ -150,9 +153,9 @@ export class Env {
     var params = form.args[1].as<Form>().args.map(fn(x: Tree): String {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
-    var localEnv = new LocalScope(env, [], new ListBuilder<Value>());
-    var lambda = Value.lambda(localEnv, params, new DefineRunner(compExternName(name)));
-    env.add(new Def(name, lambda));
+    var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
+    var lambda = lambda(localEnv, params, new DefineRunner(compExternName(name)));
+    env.add(name, lambda);
   }
 
   public compFunc(form: Form): Void {
@@ -161,9 +164,9 @@ export class Env {
       return x.as<Form>().args[0].as<Ident>().repr;
     });
     var body = compTree(form.args[2]);
-    var localEnv = new LocalScope(env, [], new ListBuilder<Value>());
-    var lambda = Value.lambda(localEnv, params, body);
-    env.add(new Def(name, lambda));
+    var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
+    var lambda = lambda(localEnv, params, body);
+    env.add(name, lambda);
   }
 
   public compTopForm(form: Form): Void {

@@ -601,7 +601,6 @@ if  not state-has-data strip str
 (defs-append defs name value)
 pair pair name value defs
 
-
 (defs-lookup defs name)
 and defs
 if  str-eq name first first defs
@@ -672,7 +671,7 @@ if  ast-is-lambda tree
         put-line
     0
 
-(compile-ast-path tree (path) defs)
+(compile-c tree (path) defs)
 if  ast-is-str tree
     let str second tree
     if  str
@@ -707,7 +706,7 @@ if  ast-is-function tree
             compile-str second arg
     do  put-str ");"
     do  put-line
-    do  pre-compile-ast second second tree compile-ast-path tree path defs compile-str second first second first second tree defs
+    do  pre-compile-ast second second tree compile-c tree path defs compile-str second first second first second tree defs
     do  put-str "size_t "
     do  compile-str name
     do  put-str "(size_t c"
@@ -717,7 +716,7 @@ if  ast-is-function tree
             compile-str second arg
     do  put-str "){"
     let ret
-        compile-ast-path second second tree compile-str name defs
+        compile-c second second tree compile-str name defs
     do  put-str "return "
     do  put-str ret
     do  compile-str name
@@ -735,7 +734,7 @@ if  ast-is-lambda tree
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    do  if  0
+    do  if  1
             do  put-str "size_t l"
             do  path
             do  put-str "["
@@ -770,7 +769,7 @@ if  ast-is-call tree
             not defs-lookup defs second func
         do  fold n el
                 0 list-reverse second second tree
-                let v compile-ast-path
+                let v compile-c
                         el
                         do  path
                         do  put-str "_"
@@ -800,7 +799,7 @@ if  ast-is-call tree
         do  put-str ");"
             "i"
         let f
-            compile-ast-path
+            compile-c
                 first second tree
                 do  path
                 do  put-str "_"
@@ -816,7 +815,7 @@ if  ast-is-call tree
         do  put-str ";"
         do  fold n el
                 0 list-reverse second second tree
-                let v compile-ast-path
+                let v compile-c
                         el
                         do path
                         do put-str "_"
@@ -879,6 +878,36 @@ if  ast-is-name tree
         do  put-str ";"
             "w"
     "__ERROR__"
+
+(compile-wat tree (path) defs)
+if  ast-is-str tree
+    0
+if  ast-is-extern tree
+    do  put-str "(extern "
+    do  put-str first second second tree
+    do  put-str " (func"
+    do  for i second second second tree
+            put-str " i32"
+    do  put-str "))"
+        put-line
+if  ast-is-function tree
+    let args second second first second tree
+    let name second first second first second tree
+    let defs 
+        fold xdefs arg
+             0     args
+            defs-append xdefs second arg pair 0 second arg
+    do  put-str "(func)"
+        0
+if  ast-is-lambda tree
+    0
+if  ast-is-call tree
+    0
+if  ast-is-number tree
+    0
+if  ast-is-name tree
+    0
+    put-str "__ERROR__"
 
 (compile-js-extern str)
 if  str-eq str "putchar"     put-str "c=>process.stdout.write(String.fromCharCode(c))"
@@ -1050,15 +1079,23 @@ parse-toplevel str-to-state str binding-table
     do  putchar '"
     do  put-line
         for node values
-            compile-ast-path node 0 0
+            compile-c node 0 0
     put-error info
 
+(main-wat str)
+parse-toplevel str-to-state str binding-table
+    for node values
+        compile-wat node 0 0
+    put-error info
+    
 (err-unknown-lang lang)
 do  put-str "unknown target: "
 do  put-str lang
     put-line
 
 (main-lang lang str)
+if  str-eq lang "wat"
+    main-wat str
 if  str-eq lang "c"
     main-c str
 if  str-eq lang "js"

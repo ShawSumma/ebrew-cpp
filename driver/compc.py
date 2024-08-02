@@ -6,8 +6,8 @@ logging.basicConfig(filename="/dev/stdout", level=logging.DEBUG, format="%(messa
 
 dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-sys.path.append('temper.out/py/temper-core')
-sys.path.append('temper.out/py/eb')
+sys.path.append('temper.out/mypyc/temper-core')
+sys.path.append('temper.out/mypyc/eb')
 
 from eb.interp import Env
 from eb.value import string

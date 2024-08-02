@@ -1,12 +1,13 @@
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdint.h>
 
+static uint8_t ebz_alloc_mem[1 << 24];
 static size_t ebz_alloc_total = 0;
 static inline void *ebz_alloc_bytes(size_t size) {
+    size_t head = ebz_alloc_total;
     ebz_alloc_total += size;
-    return malloc(size);
+    return &ebz_alloc_mem[head];
 }
 static inline size_t *ebz_alloc(size_t n) {
     return ebz_alloc_bytes(sizeof(size_t) * n);
@@ -15,13 +16,6 @@ static inline size_t ebz_putchar(size_t c) {
     putchar((int)c);
     return 0;
 }
-enum {
-    EBZ_TAG_B1 = 0,
-    EBZ_TAG_B2 = 1,
-    EBZ_TAG_B4 = 2,
-    EBZ_TAG_PTR = 3,
-    EBZ_TAG_MAX = 4,
-};
 static inline size_t ebz_pair(size_t a, size_t b) {
     size_t *pair = ebz_alloc(2);
     pair[0] = a;
@@ -63,15 +57,19 @@ static inline size_t eb_equal(size_t a1, size_t r, size_t l) {
 static inline size_t eb_above(size_t a1, size_t r, size_t l) {
     return r > l ? 1 : 0;
 }
-static inline size_t ebz_stol(size_t *exist, char *p) {
-    if (*exist == 0) {
-        size_t r = 0;
-        for (size_t i = strlen(p); i > 0; i--) {
-            r = ebz_pair(p[i - 1], r);
-        };
-        *exist = r;
+static inline void ebz_stol(size_t *exist, char *p) {
+    if (*exist != 0) {
+        return;
     }
-    return *exist;
+    size_t r = 0;
+    size_t len = 0;
+    while (p[len] != '\0') {
+        len += 1;
+    }
+    for (size_t i = len; i > 0; i--) {
+        r = ebz_pair(p[i - 1], r);
+    };
+    *exist = r;
 }
 static inline size_t eb_read_DASH_file(size_t a1, size_t f) {
     char name[1024];
@@ -103,9 +101,9 @@ int main(int argc, char **argv) {
     while (argc > 1) {
         char *c = argv[--argc];
         size_t next = 0;
-        a = ebz_pair(ebz_stol(&next, c), a);
+        ebz_stol(&next, c);
+        a = ebz_pair(next, a);
     }
     int got = (int)eb_main(0, a);
-    // printf("alloc: %zu\n", ebz_alloc_total);
     return got;
 }

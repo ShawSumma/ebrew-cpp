@@ -1,6 +1,7 @@
 import {argv} from 'process';
 import {readFile} from 'fs/promises';
 import {Env} from '../temper.out/js/eb/interp.js';
+import {string} from '../temper.out/js/eb/value.js';
 import {URL} from 'url';
 
 const main = async () => {
@@ -11,7 +12,7 @@ const main = async () => {
 
     env.source(String(await ebFile));
 
-    env.call("main-lang", [argv[2] ?? "c", String(await srcFile)]);
+    env.call("main-lang", [string(argv[2] ?? "c"), string(String(await srcFile))]);
 };
 
 main().catch(e => console.error(e));

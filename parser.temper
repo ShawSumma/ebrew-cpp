@@ -126,15 +126,13 @@ let isSpaceChar(s: String): Boolean {
   return s == " " || s == "\t" || s == "\r" || s == "\n";
 }
 
-let charInRange(s: String, az: String): Boolean {
-  var low = az.codeAt(String.start);
+let charInRange(s: String, low: Int, high: Int): Boolean {
   var mid = s.codeAt(String.start);
-  var high = az.codeAt(az.next(String.start));
   return low <= mid && mid <= high;
 }
 
 let isWordChar(s: String): Boolean {
-  return charInRange(s, "09") ||  (charInRange(s, "az")) ||  (charInRange(s, "AZ")) || s == "-" || s == "_";
+  return charInRange(s, char'0', char'9') ||  (charInRange(s, char'a', char'z')) ||  (charInRange(s, char'A', char'Z')) || s == "-" || s == "_";
 }
 
 let canFind(s: List<String>, v: String): Boolean {
@@ -333,7 +331,7 @@ export class Parser {
     }
     var res: Tree = new Ident("?");
     var split = String.fromCodePoint(name.codeAt(String.start));
-    if (charInRange(split, "09")) {
+    if (charInRange(split, char'0', char'9')) {
         res = new Number(parseInt(name));
     } else {
         res = readCall(name);
