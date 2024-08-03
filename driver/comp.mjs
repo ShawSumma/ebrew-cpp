@@ -13,6 +13,8 @@ const main = async () => {
     env.source(String(await ebFile));
 
     env.call("main-lang", [string(argv[2] ?? "c"), string(String(await srcFile))]);
+
+    env.flush();
 };
 
 main().catch(e => console.error(e));
