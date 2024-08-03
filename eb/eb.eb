@@ -596,7 +596,6 @@ if  not state-has-data strip str
             error info
         error info
 
-(read-file name) ?
 
 (defs-append defs name value)
 pair pair name value defs
@@ -623,9 +622,9 @@ if  equal 0 first found
     compile-str second found
     put-str "?"
 
-(pre-compile-ast tree (compile tree (path) defs) (path) defs)
+(compile-c-pre tree (compile tree (path) defs) (path) defs)
 if  ast-is-call tree
-    do  pre-compile-ast
+    do  compile-c-pre
         first second tree
         compile tree path defs
         do  path
@@ -633,7 +632,7 @@ if  ast-is-call tree
         defs
     fold n el
          0 list-reverse second second tree
-        do  pre-compile-ast
+        do  compile-c-pre
                 el
                 compile tree path defs
                 do  path
@@ -653,7 +652,7 @@ if  ast-is-lambda tree
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    do  pre-compile-ast second second tree compile tree path defs path defs
+    do  compile-c-pre second second tree compile tree path defs path defs
     do  put-str "size_t "
     do  put-str "ebl_"
     do  path
@@ -706,7 +705,7 @@ if  ast-is-function tree
             compile-str second arg
     do  put-str ");"
     do  put-line
-    do  pre-compile-ast second second tree compile-c tree path defs compile-str second first second first second tree defs
+    do  compile-c-pre second second tree compile-c tree path defs compile-str second first second first second tree defs
     do  put-str "size_t "
     do  compile-str name
     do  put-str "(size_t c"
@@ -879,197 +878,6 @@ if  ast-is-name tree
             "w"
     "__ERROR__"
 
-(compile-wat tree (path) defs)
-if  ast-is-str tree
-    0
-if  ast-is-extern tree
-    do  put-str "(extern "
-    do  put-str first second second tree
-    do  put-str " (func"
-    do  for i second second second tree
-            put-str " i32"
-    do  put-str "))"
-        put-line
-if  ast-is-function tree
-    let args second second first second tree
-    let name second first second first second tree
-    let defs 
-        fold xdefs arg
-             0     args
-            defs-append xdefs second arg pair 0 second arg
-    do  put-str "(func)"
-        0
-if  ast-is-lambda tree
-    0
-if  ast-is-call tree
-    0
-if  ast-is-number tree
-    0
-if  ast-is-name tree
-    0
-    put-str "__ERROR__"
-
-(compile-js-extern str)
-if  str-eq str "putchar"     put-str "c=>process.stdout.write(String.fromCharCode(c))"
-if  str-eq str "if"          put-str "(c,t,f)=>(c?t:f)();"
-if  str-eq str "first"       put-str "p=>p[0]"
-if  str-eq str "second"      put-str "p=>p[1]"
-if  str-eq str "pair"        put-str "(a,b)=>[a,b]"
-if  str-eq str "equal"       put-str "(a,b)=>b===a?1:0"
-if  str-eq str "above"       put-str "(a,b)=>b<a?1:0"
-if  str-eq str "add"         put-str "(a,b)=>b+a|0"
-if  str-eq str "sub"         put-str "(a,b)=>b-a|0"
-if  str-eq str "mul"         put-str "(a,b)=>b*a|0"
-if  str-eq str "div"         put-str "(a,b)=>b/a|0"
-if  str-eq str "mod"         put-str "(a,b)=>b%a|0"
-if  str-eq str "read-file"   put-str "async(f)=>{let s='';while(f){s+=String.fromCharCode(f[0]);f=f[1];};return rt_str(await readFile(s));}"
-    0
-
-(compile-js tree)
-if  ast-is-str tree
-    do  put-str "rt_str(["
-    do  put-list-sep second tree
-            put-str ","
-            put-num el
-        put-str "])"
-if  ast-is-extern tree
-    do  put-str "const "
-    do  compile-js first second second tree
-    do  put-str "="
-    do  compile-js-extern second first second second tree
-        put-str ";"
-if  ast-is-function tree
-    do  put-str "const "
-    do  compile-js first second first second tree
-    do  put-str "=async("
-    do  put-list-sep second second first second tree
-        put-str "," 
-        compile-js el 
-    do  put-str ")"
-    do  put-str "=>"
-    do  compile-js second second tree
-        put-str ";"
-if  ast-is-lambda tree
-    do  put-str "(async("
-    do  put-list-sep first second tree
-            put-str ","
-            compile-js el
-    do  put-str ")=>"
-    do  compile-js second second tree
-        put-str ")"
-if  ast-is-call tree
-    do  put-str "(await "
-    do  compile-js first second tree
-    do  put-str "("
-    do  put-list-sep second second tree
-            put-str ","
-            compile-js el
-        put-str "))"
-if  ast-is-number tree
-    put-num second tree
-if  ast-is-name tree
-    do put-str "eb_"
-        for chr second tree
-            if equal chr '-
-                put-str "_DASH_"
-                putchar chr
-    put-str "?"
-
-(compile-lua tree)
-if  ast-is-str tree
-    do  for chr second tree
-        do  putchar '{
-        do  put-num chr
-            putchar ',
-    do  putchar '0
-        for chr second tree
-            putchar '}
-if  ast-is-extern tree
-    do  put-str "local "
-    do  compile-lua first second second tree
-    do  put-str "="
-    let str second first second second tree
-    if  str-eq str "putchar"     put-str "function(c)io.write(string.char(c))return 0 end"
-    if  str-eq str "if"          put-str "function(c,t,f)if c~=0 then return t() else return f()end end"
-    if  str-eq str "first"       put-str "function(p)return p[1]end"
-    if  str-eq str "second"      put-str "function(p)return p[2]end"
-    if  str-eq str "pair"        put-str "function(a,b)return{a,b}end"
-    if  str-eq str "equal"       put-str "function(a,b)if a==b then return 1 else return 0 end end"
-    if  str-eq str "above"       put-str "function(a,b)if a>b then return 1 else return 0 end end"
-    if  str-eq str "add"         put-str "function(a,b)return b + a end"
-    if  str-eq str "sub"         put-str "function(a,b)return b - a end"
-    if  str-eq str "mul"         put-str "function(a,b)return b * a end"
-    if  str-eq str "div"         put-str "function(a,b)return math.floor(b / a) end"
-    if  str-eq str "mod"         put-str "function(a,b)return b % a end"
-    if  str-eq str "read-file"  
-        do  put-str "function(f)local s=''while f~=0 do s=s..string.char(f[1])f=f[2]end "
-        do  put-str "local f=assert(io.open(s, 'rb'))s=f:read('*all')f:close()f=0 "
-            put-str "for c=#s,1,-1 do f={s:byte(c),f}end return f end"
-        put-str "print('unknown extern')"
-if  ast-is-function tree
-    do  put-str "local function "
-    do  compile-lua first second first second tree
-    do  put-str "("
-    do  put-list-sep second second first second tree
-        put-str "," 
-        compile-lua el 
-    do  put-str ")return "
-    do  compile-lua second second tree
-        put-str " end"
-if  ast-is-lambda tree
-    do  put-str "function("
-    do  put-list-sep first second tree
-            put-str ","
-            compile-lua el
-    do  put-str ")return "
-    do  compile-lua second second tree
-        put-str " end"
-if  ast-is-call tree
-    do  put-str ""
-    do  compile-lua first second tree
-    do  put-str "("
-    do  put-list-sep second second tree
-            put-str ","
-            compile-lua el
-        put-str ")"
-if  ast-is-number tree
-    put-num second tree
-if  ast-is-name tree
-    do put-str "eb_"
-        for chr second tree
-            if equal chr '-
-                put-str "_DASH_"
-                putchar chr
-    put-str "?"
-
-(main-js str)
-parse-toplevel str-to-state str binding-table
-    do  put-str "const {readFile}=require('fs/promises');"
-    do  put-str "const main=async(r,e)=>{let t=0;for(let a of[...process.argv.slice(r)].reverse()){"
-    do  put-str "let n=0;for(let s of[...a].reverse())n=[s.charCodeAt(0),n];t=[n,t]}return await e(t)};"
-    do put-str "const rt_str=a=>{let e=0;for(let v of Array.prototype.reverse.call(a))e=[v,e];return e};"
-    do  put-str "(async()=>{"
-    do  for value values
-        do  compile-js value
-            put-line
-        do  put-str "return await main(2,eb_main);})().catch((e) => {throw e;})"
-            put-line
-    do  put-str "error"
-        put-line
-        
-(main-lua str)
-parse-toplevel str-to-state str binding-table
-    do  put-str "(function(v)"
-    do  put-line
-    do  for value values
-        do  compile-lua value
-            put-line
-    do  put-str "local m=0 for a=#v,1,-1 do local c=0 for i=#v[a],1,-1 "
-    do  put-str "do c={v[a]:byte(i),c}end m={c,m}end "
-    do  put-str "eb_main(m)end)(arg)"
-        put-line
-    do  put-str "error"
-        put-line
 
 (main-c str)
 parse-toplevel str-to-state str binding-table
@@ -1082,27 +890,17 @@ parse-toplevel str-to-state str binding-table
             compile-c node 0 0
     put-error info
 
-(main-wat str)
-parse-toplevel str-to-state str binding-table
-    for node values
-        compile-wat node 0 0
-    put-error info
-    
 (err-unknown-lang lang)
 do  put-str "unknown target: "
 do  put-str lang
     put-line
 
 (main-lang lang str)
-if  str-eq lang "wat"
-    main-wat str
 if  str-eq lang "c"
     main-c str
-if  str-eq lang "js"
-    main-js str
-if  str-eq lang "lua"
-    main-lua str
 err-unknown-lang lang
+
+(read-file name) ?
 
 (comp-final file lang)
 main-lang lang read-file file
