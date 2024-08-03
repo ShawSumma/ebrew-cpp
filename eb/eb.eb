@@ -99,7 +99,7 @@ do  then first tree
 (put-list-sep tree (sep) (then el))
 put-list-sep-from 0 tree sep then el
 
-# strings #
+# lists #
 
 (list-reverse-from list res)
 if  list
@@ -108,6 +108,8 @@ if  list
 
 (list-reverse list)
 list-reverse-from list 0
+
+# strings #
 
 (str-eq x y)
 if  x
@@ -118,6 +120,25 @@ if  x
     if  y
         0
         1
+
+(str-len s)
+and s add 1 str-len second s
+
+(str-cat x y)
+if  x
+    pair first x str-cat second x y
+    y
+
+(num-to-str-nonzero n)
+and above n 0
+str-cat
+    num-to-str-nonzero div 10 n
+    pair add '0 mod 10 n 0
+
+(num-to-str n)
+if  n
+    num-to-str-nonzero n
+    "0"
 
 (rstr-to-num x)
 and x
@@ -878,6 +899,144 @@ if  ast-is-name tree
             "w"
     "__ERROR__"
 
+(ir-of-form type args) pair 0 pair type args
+(ir-is-form ir) equal 0 first ir
+(ir-form-type ir) first second ir
+(ir-form-args ir) second second ir
+
+(ir-of-ident ident) pair 1 ident
+(ir-is-ident ir) equal 1 first ir
+(ir-ident-text ir) second ir
+
+(ir-of-number number) pair 2 number
+(ir-is-number ir) equal 2 first ir
+(ir-number-value ir) second ir
+
+(ir-print-spaces n)
+and n
+do  putchar 32
+    ir-print-spaces sub 1 n
+
+(ir-print-depth ir n)
+if  ir-is-form ir
+    let type ir-form-type ir
+    let args ir-form-args ir
+    do  put-str "("
+    do  put-str type
+    do  for arg args
+        let n add 2 n
+        do  put-line
+        do  ir-print-spaces n
+            ir-print-depth arg n
+        put-str ")"
+if  ir-is-ident ir
+    put-str ir-ident-text ir
+if  ir-is-number ir
+    put-num ir-number-value ir
+put-str "<unk>"
+
+(ir-print ir)
+ir-print-depth ir 0
+
+(compile-ir tree (get-path) defs)
+if  ast-is-name tree
+    let found defs-lookup defs second tree
+    if  found
+        ir-of-form "let"
+            pair ir-of-ident get-path
+            pair ir-of-ident second found
+                0
+        ir-of-form "error"
+            pair ir-of-ident get-path
+                0
+if  ast-is-call tree
+    let func first second tree
+    if  and ast-is-name func
+            1
+        ir-of-form "block"
+            let func-path str-cat get-path "_func"
+            pair ir-of-form "let"
+                pair ir-of-ident func-path
+                pair ir-of-ident second func
+                    0
+            pair ir-of-form "block"
+                    list-reverse second fold state el
+                        pair 0 0 list-reverse second second tree
+                        let n first state
+                        let path
+                            str-cat get-path
+                            str-cat "_"
+                                num-to-str n
+                        let arg compile-ir el path defs
+                        pair add 1 n pair arg second state
+            pair ir-of-form "call"
+                pair ir-of-ident func-path
+                    list-reverse second fold state el
+                        pair 0 0 list-reverse second second tree
+                        let n first state
+                        pair add 1 n
+                        pair ir-of-ident
+                                str-cat get-path
+                                str-cat "_"
+                                    num-to-str n
+                            second state
+                0
+        ir-of-ident "<TODO: call-lambda>"
+if  ast-is-function tree
+    let name second first second first second tree
+    let args second second first second tree
+    let defs 
+        fold xdefs arg
+             0     args
+            defs-append xdefs second arg pair 0 second arg
+    ir-of-form "function"
+        pair ir-of-ident name
+        pair ir-of-form "params"
+            map arg args
+                ir-of-ident second arg
+        pair ir-of-form "block"
+            pair compile-ir second second tree name defs
+                0
+            0
+if  ast-is-number tree
+    ir-of-form "let"
+        pair get-path
+        pair ir-of-number second tree
+            0
+if  ast-is-extern tree
+    ir-of-form "extern"
+        pair ir-of-ident second first second second tree
+        pair ir-of-form "params"
+            map arg second second second tree
+                ir-of-ident second arg
+            0
+if  ast-is-lambda tree
+    let defs-init defs
+    let defs second
+        fold duo      def
+            pair 0 0  defs
+            pair add 1 first duo 
+                 defs-append second duo first def pair 1 first duo
+    let defs second 
+        fold duo         arg
+             pair 0 defs first second tree
+            pair add 1 first duo
+                 defs-append second duo second arg pair 0 second arg
+    ir-of-form "closure"
+        pair ir-of-ident get-path
+            map arg first second tree
+                ir-of-ident second arg
+if  ast-is-str tree
+    ir-of-form "let"
+        pair ir-of-ident get-path
+        pair fold ret char
+                ir-of-number 0 list-reverse second tree
+                ir-of-form "pair"
+                    pair ir-of-number char
+                    pair ret
+                        0
+            0
+ir-of-ident "<TODO: else>"
 
 (main-c str)
 parse-toplevel str-to-state str binding-table
@@ -890,12 +1049,23 @@ parse-toplevel str-to-state str binding-table
             compile-c node 0 0
     put-error info
 
+(main-ir str)
+parse-toplevel str-to-state str binding-table
+    for node values
+        let ir compile-ir node 0 0
+        do  put-line
+        do  ir-print ir
+            put-line
+    put-error info
+
 (err-unknown-lang lang)
 do  put-str "unknown target: "
 do  put-str lang
     put-line
 
 (main-lang lang str)
+if  str-eq lang "ir"
+    main-ir str
 if  str-eq lang "c"
     main-c str
 err-unknown-lang lang
