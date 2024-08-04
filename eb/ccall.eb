@@ -1,0 +1,8 @@
+
+(print x) ?
+
+(call (func arg) value)
+func value
+
+(main)
+call print arg 10

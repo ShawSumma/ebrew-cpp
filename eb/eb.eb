@@ -101,17 +101,17 @@ put-list-sep-from 0 tree sep then el
 
 # lists #
 
-(list-reverse-from list res)
+(reverse-from list res)
 if  list
-    list-reverse-from second list pair first list res
+    reverse-from second list pair first list res
     res
 
-(list-reverse list)
-list-reverse-from list 0
+(reverse list)
+reverse-from list 0
 
-(list-cat x y)
+(concat x y)
 if  x
-    pair first x list-cat second x y
+    pair first x concat second x y
     y
 
 # strings #
@@ -126,17 +126,9 @@ if  x
         0
         1
 
-(str-len s)
-and s add 1 str-len second s
-
-(str-cat x y)
-if  x
-    pair first x str-cat second x y
-    y
-
 (num-to-str-nonzero n)
 and above n 0
-str-cat
+concat
     num-to-str-nonzero div 10 n
     pair add '0 mod 10 n 0
 
@@ -151,7 +143,7 @@ and x
         sub '0 first x
 
 (str-to-num x)
-rstr-to-num list-reverse x
+rstr-to-num reverse x
 
 # error library #
 
@@ -632,277 +624,6 @@ if  str-eq name first first defs
     second first defs
     defs-lookup second defs name
 
-(compile-str str)
-do  put-str "eb_"
-for c str
-    if  equal c '-
-        put-str "_DASH_"
-        putchar c
-
-(compile-found found)
-if  equal 1 first found
-    do  put-str "(((size_t*)c)["
-    do  put-num add 1 second found
-        put-str "])"
-if  equal 0 first found
-    compile-str second found
-    put-str "?"
-
-(compile-c-pre tree (compile tree (path) defs) (path) defs)
-if  ast-is-call tree
-    do  compile-c-pre
-        first second tree
-        compile tree path defs
-        do  path
-            put-str "_f"
-        defs
-    fold n el
-         0 list-reverse second second tree
-        do  compile-c-pre
-                el
-                compile tree path defs
-                do  path
-                do  put-str "_"
-                    put-num n
-                defs
-            add 1 n
-if  ast-is-lambda tree
-    let defs second
-        fold duo      def
-            pair 0 0  defs
-            pair add 1 first duo
-                 defs-append second duo first def pair 1 first duo
-    let defs second
-        fold duo         arg
-             pair 0 defs first second tree
-            pair add 1 first duo
-                 defs-append second duo second arg pair 0 second arg
-    do  compile-c-pre second second tree compile tree path defs path defs
-    do  put-str "size_t "
-    do  put-str "ebl_"
-    do  path
-    do  put-str "(size_t c"
-    do  for arg first second tree
-        do  put-str ","
-        do  put-str "size_t "
-            compile-str second arg
-    do  put-str "){"
-    let name compile second second tree path defs
-    do  put-str "return "
-    do  put-str name
-    do  path
-    do  put-str ";}"
-        put-line
-    0
-
-(compile-c tree (path) defs)
-if  ast-is-str tree
-    let str second tree
-    if  str
-        do  put-str "size_t s"
-        do  path
-        do  put-str "=0;"
-        do  put-str "ebz_stol(&s"
-        do  path
-        do  put-str ","
-        do  putchar '"
-        do  put-str str
-        do  putchar '"
-        do  put-str ");"
-            "s"
-        do  put-str "size_t s"
-        do  path
-        do  put-str "=0;"
-            "s"
-if  ast-is-function tree
-    let args second second first second tree
-    let name second first second first second tree
-    let defs
-        fold xdefs arg
-             0     args
-            defs-append xdefs second arg pair 0 second arg
-    do  put-str "size_t "
-    do compile-str name
-    do  put-str "(size_t c"
-    do  for arg args
-        do  put-str ","
-        do  put-str "size_t "
-            compile-str second arg
-    do  put-str ");"
-    do  put-line
-    do  compile-c-pre second second tree compile-c tree path defs compile-str second first second first second tree defs
-    do  put-str "size_t "
-    do  compile-str name
-    do  put-str "(size_t c"
-    do  for arg args
-        do  put-str ","
-        do  put-str "size_t "
-            compile-str second arg
-    do  put-str "){"
-    let ret
-        compile-c second second tree compile-str name defs
-    do  put-str "return "
-    do  put-str ret
-    do  compile-str name
-    do  put-str ";}"
-        "__ERROR__"
-if  ast-is-lambda tree
-    let d0 defs
-    let defs second
-        fold duo      def
-            pair 0 0  defs
-            pair add 1 first duo
-                 defs-append second duo first def pair 1 first duo
-    let defs second
-        fold duo         arg
-             pair 0 defs first second tree
-            pair add 1 first duo
-                 defs-append second duo second arg pair 0 second arg
-    do  if  1
-            do  put-str "size_t l"
-            do  path
-            do  put-str "["
-            do  put-num add 1 length d0
-                put-str "];"
-            do  put-str "size_t *l"
-            do  path
-            do  put-str "="
-            do  put-str "ebz_alloc("
-            do  put-num add 1 length d0
-                put-str ");"
-    do put-str "l"
-    do  path
-    do  put-str "[0]=(size_t)"
-    do  put-str "ebl_"
-    do  path
-    do  put-str ";"
-    do  fold n def
-             0 d0
-        do  put-str "l"
-        do  path
-        do  put-str "["
-        do  put-num add 1 n
-        do  put-str "]="
-        do  compile-found second def
-        do  put-str ";"
-            add 1 n
-        "(size_t)l"
-if  ast-is-call tree
-    let func first second tree
-    if  and ast-is-name func
-            not defs-lookup defs second func
-        do  fold n el
-                0 list-reverse second second tree
-                let v compile-c
-                        el
-                        do  path
-                        do  put-str "_"
-                            put-num n
-                        defs
-                do  put-str "size_t v"
-                do  put-num n
-                do  path
-                do  put-str "="
-                do  put-str v
-                do  path
-                do  put-str "_"
-                do  put-num n
-                do  put-str ";"
-                    add 1 n
-        do  put-str "size_t i"
-        do  path
-        do  put-str "="
-        do  compile-str second func
-        do  put-str "(0"
-        do  fold n el
-                0 second second tree
-                do  put-str ",v"
-                do  put-num n
-                do  path
-                    add 1 n
-        do  put-str ");"
-            "i"
-        let f
-            compile-c
-                first second tree
-                do  path
-                do  put-str "_"
-                    put-str "f"
-                defs
-        do  put-str "size_t f"
-        do  path
-        do  put-str "="
-        do  do  put-str f
-            do  path
-            do  put-str "_"
-                put-str "f"
-        do  put-str ";"
-        do  fold n el
-                0 list-reverse second second tree
-                let v compile-c
-                        el
-                        do path
-                        do put-str "_"
-                            put-num n
-                        defs
-                do  put-str "size_t v"
-                do  put-num n
-                do  path
-                do  put-str "="
-                do  put-str v
-                do  path
-                do  put-str "_"
-                do  put-num n
-                do  put-str ";"
-                    add 1 n
-        do  put-str "size_t i"
-        do  path
-        do  put-str "=((size_t(*)(size_t"
-        do  fold n el
-                0 second second tree
-                put-str ",size_t"
-        do  put-str "))(*(size_t*)"
-        do  do  put-str f
-            do  path
-            do  put-str "_"
-                put-str "f"
-        do  put-str "))("
-        do  do  put-str f
-            do  path
-            do  put-str "_"
-                put-str "f"
-        do  fold n el
-                0 second second tree
-                do  put-str ",v"
-                do  put-num n
-                do  path
-                    add 1 n
-        do  put-str ");"
-            "i"
-if  ast-is-number tree
-    do  put-str "size_t n"
-    do  path
-    do  put-str "="
-    do  put-num second tree
-    do  put-str ";"
-        "n"
-if  ast-is-name tree
-    let found defs-lookup defs second tree
-    if  found
-        do  put-str "size_t w"
-        do  path
-        do  put-str "="
-        do  compile-found found
-        do  put-str ";"
-            "w"
-        do  put-str "size_t w"
-        do  path
-        do  put-str "="
-        do  compile-str second tree
-        do  put-str ";"
-            "w"
-    "__ERROR__"
-
 (ir-form-type-error) 0
 (ir-form-type-let) 1
 (ir-form-type-block) 2
@@ -912,6 +633,7 @@ if  ast-is-name tree
 (ir-form-type-closure) 6
 (ir-form-type-extern) 7
 (ir-form-type-return) 8
+(ir-form-type-capture) 9
 
 (ir-form-type-to-str type)
 if equal type ir-form-type-error "error"
@@ -923,6 +645,7 @@ if equal type ir-form-type-params "params"
 if equal type ir-form-type-closure "closure"
 if equal type ir-form-type-extern "extern"
 if equal type ir-form-type-return "return"
+if equal type ir-form-type-capture "capture"
     "unknown"
 
 (ir-of-form type args) pair 0 pair type args
@@ -946,7 +669,7 @@ if equal type ir-form-type-return "return"
 ir-of-form ir-form-type-block
     fold e el
         0 args
-        list-cat
+        concat
             if  and ir-is-form el equal ir-form-type-block ir-form-type el
                 ir-form-args el
                 pair el 0
@@ -988,17 +711,17 @@ if  ast-is-call tree
             pair 0 0 second second tree
         let n first state
         pair add 1 n
-            list-cat
+            concat
                 compile-ir-pre
                     el
-                    str-cat get-path
-                    str-cat "_"
+                    concat get-path
+                    concat "_"
                         num-to-str n
                     defs
                     compile-ir tree get-path defs
                 second state
 if  ast-is-lambda tree
-    let path str-cat get-path "_ret"
+    let path concat get-path "_ret"
     let defs second
         fold duo      def
             pair 0 0  defs
@@ -1009,7 +732,7 @@ if  ast-is-lambda tree
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    list-cat
+    concat
         compile-ir-pre
             second second tree
             path
@@ -1017,8 +740,9 @@ if  ast-is-lambda tree
             compile-ir tree get-path defs
         pair
             ir-of-form ir-form-type-function
-                pair ir-of-ident path
+                pair ir-of-ident get-path
                 pair ir-of-form ir-form-type-params
+                    pair ir-of-ident "closure"
                     map arg first second tree
                         ir-of-ident second arg
                 pair ir-of-form-block
@@ -1035,28 +759,50 @@ if  ast-is-lambda tree
 if  ast-is-name tree
     let found defs-lookup defs second tree
     if  found
+        let body
+            if equal 1 first found
+                ir-of-form ir-form-type-capture
+                    pair ir-of-ident "closure"
+                    pair ir-of-number add 1 second found
+                        0
+            if equal 0 first found
+                ir-of-ident second defs-lookup defs second tree
+                ir-of-form ir-form-type-error pair "variable found, but not identified" 0
         ir-of-form ir-form-type-let
             pair ir-of-ident get-path
-            pair ir-of-ident second defs-lookup defs second tree
+            pair body
                 0
         ir-of-form ir-form-type-error
             pair ir-of-ident get-path
                 0
 if  ast-is-call tree
-    let func first second tree
     ir-of-form-block
-        let func-path str-cat get-path "_func"
+        let lambda-path concat get-path "_lambda"
+        let func-path concat get-path "_fun"
+        let found defs-lookup defs second first second tree
+        let func-pair
+            if and found equal 1 first found
+                pair
+                    ir-of-form ir-form-type-capture
+                        pair ir-of-ident lambda-path
+                        pair ir-of-number 0
+                            0
+                    ir-of-ident lambda-path
+                pair
+                    ir-of-ident lambda-path
+                    ir-of-number 0
+        pair compile-ir first second tree lambda-path defs
         pair ir-of-form ir-form-type-let
             pair ir-of-ident func-path
-            pair ir-of-ident second func
+            pair first func-pair
                 0
         pair ir-of-form-block
-                list-reverse second fold state el
-                        pair 0 0 list-reverse second second tree
+                reverse second fold state el
+                        pair 0 0 reverse second second tree
                     let n first state
                     let path
-                        str-cat get-path
-                        str-cat "_"
+                        concat get-path
+                        concat "_"
                             num-to-str n
                     let arg compile-ir el path defs
                     pair add 1 n pair arg second state
@@ -1064,19 +810,20 @@ if  ast-is-call tree
             pair ir-of-ident get-path
             pair ir-of-form ir-form-type-call
                 pair ir-of-ident func-path
-                    list-reverse second fold state el
-                        pair 0 0 list-reverse second second tree
+                pair second func-pair
+                    reverse second fold state el
+                        pair 0 0 reverse second second tree
                         let n first state
                         pair add 1 n
                         pair ir-of-ident
-                                str-cat get-path
-                                str-cat "_"
+                                concat get-path
+                                concat "_"
                                     num-to-str n
                             second state
                 0
             0
 if  ast-is-function tree
-    let path str-cat
+    let path concat
         second first second first second tree
         "_ret"
     let defs
@@ -1092,16 +839,17 @@ if  ast-is-function tree
     let base ir-of-form ir-form-type-function
         pair ir-of-ident second first second first second tree
         pair ir-of-form ir-form-type-params
+            pair ir-of-ident "closure"
             map arg second second first second tree
                 ir-of-ident second arg
         pair ir-of-form-block
-            pair compile-ir second second tree get-path defs
+            pair compile-ir second second tree path defs
                 0
         pair ir-of-form ir-form-type-return
-            pair ir-of-ident get-path
+            pair ir-of-ident path
                 0
             0
-        list-cat pre pair base 0
+        concat pre pair base 0
 if  ast-is-number tree
     ir-of-form ir-form-type-let
         pair ir-of-ident get-path
@@ -1137,17 +885,6 @@ if  ast-is-str tree
             0
 ir-of-ident "<TODO: else>"
 
-(main-c str)
-parse-toplevel str-to-state str binding-table
-    do  put-str "#include "
-    do  putchar '"
-    do  put-str "ebrew.h"
-    do  putchar '"
-    do  put-line
-        for node values
-            compile-c node 0 0
-    put-error info
-
 (main-ir str)
 parse-toplevel str-to-state str binding-table
     for node values
@@ -1167,8 +904,6 @@ do  put-str lang
 (main-lang lang str)
 if  str-eq lang "ir"
     main-ir str
-if  str-eq lang "c"
-    main-c str
 err-unknown-lang lang
 
 (read-file name) ?
