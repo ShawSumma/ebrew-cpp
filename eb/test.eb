@@ -57,4 +57,4 @@ do  put-num n
     put-line
 
 (main args)
-put-num-line 10
+put-num-line 1234

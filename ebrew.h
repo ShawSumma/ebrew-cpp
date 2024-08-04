@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
-// #define EB_DEBUG() printf("%s\n", __FUNCTION__)
+#if 0
+#define EB_DEBUG() printf("%s\n", __FUNCTION__)
+#else
 #define EB_DEBUG()( (void) 0)
+#endif
 
 static uint8_t ebz_alloc_mem[1 << 24];
 static size_t ebz_alloc_total = 0;
@@ -38,26 +41,74 @@ static inline size_t ebz_if(size_t c, size_t t, size_t e) {
         return ((size_t(*)(size_t)) * (size_t *)e)(e);
     }
 }
-static inline size_t eb_putchar(size_t a1, size_t a2) {
+static inline size_t eb_putchar_ret(size_t a1, size_t a2);
+static size_t eb_putchar[] = {
+  (size_t) eb_putchar_ret,
+};
+static inline size_t eb_putchar_ret(size_t a1, size_t a2) {
     return ebz_putchar(a2);
 }
-static inline size_t eb_pair(size_t a1, size_t a2, size_t a3) {
+static inline size_t eb_pair_ret(size_t a1, size_t a2, size_t a3);
+static size_t eb_pair[] = {
+  (size_t) eb_pair_ret,
+};
+static inline size_t eb_pair_ret(size_t a1, size_t a2, size_t a3) {
     return ebz_pair(a2, a3);
 }
-static inline size_t eb_first(size_t a1, size_t a2) { return ebz_first(a2); }
-static inline size_t eb_second(size_t a1, size_t a2) { return ebz_second(a2); }
-static inline size_t eb_if(size_t a1, size_t a2, size_t a3, size_t a4) {
+static inline size_t eb_first_ret(size_t a1, size_t a2);
+static size_t eb_first[] = {
+  (size_t) eb_first_ret,
+};
+static inline size_t eb_first_ret(size_t a1, size_t a2) { return ebz_first(a2); }
+static inline size_t eb_second_ret(size_t a1, size_t a2);
+static size_t eb_second[] = {
+  (size_t) eb_second_ret,
+};
+static inline size_t eb_second_ret(size_t a1, size_t a2) { return ebz_second(a2); }
+static inline size_t eb_if_ret(size_t a1, size_t a2, size_t a3, size_t a4);
+static size_t eb_if[] = {
+  (size_t) eb_if_ret,
+};
+static inline size_t eb_if_ret(size_t a1, size_t a2, size_t a3, size_t a4) {
     return ebz_if(a2, a3, a4);
 }
-static inline size_t eb_add(size_t a1, size_t r, size_t l) { return l + r; }
-static inline size_t eb_sub(size_t a1, size_t r, size_t l) { return l - r; }
-static inline size_t eb_mul(size_t a1, size_t r, size_t l) { return l * r; }
-static inline size_t eb_div(size_t a1, size_t r, size_t l) { return l / r; }
-static inline size_t eb_mod(size_t a1, size_t r, size_t l) { return l % r; }
-static inline size_t eb_equal(size_t a1, size_t r, size_t l) {
+static inline size_t eb_add_ret(size_t a1, size_t r, size_t l);
+static size_t eb_add[] = {
+  (size_t) eb_add_ret,
+};
+static inline size_t eb_add_ret(size_t a1, size_t r, size_t l) { return l + r; }
+static inline size_t eb_sub_ret(size_t a1, size_t r, size_t l);
+static size_t eb_sub[] = {
+  (size_t) eb_sub_ret,
+};
+static inline size_t eb_sub_ret(size_t a1, size_t r, size_t l) { return l - r; }
+static inline size_t eb_mul_ret(size_t a1, size_t r, size_t l);
+static size_t eb_mul[] = {
+  (size_t) eb_mul_ret,
+};
+static inline size_t eb_mul_ret(size_t a1, size_t r, size_t l) { return l * r; }
+static inline size_t eb_div_ret(size_t a1, size_t r, size_t l);
+static size_t eb_div[] = {
+  (size_t) eb_div_ret,
+};
+static inline size_t eb_div_ret(size_t a1, size_t r, size_t l) { return l / r; }
+static inline size_t eb_mod_ret(size_t a1, size_t r, size_t l);
+static size_t eb_mod[] = {
+  (size_t) eb_mod_ret,
+};
+static inline size_t eb_mod_ret(size_t a1, size_t r, size_t l) { return l % r; }
+static inline size_t eb_equal_ret(size_t a1, size_t r, size_t l);
+static size_t eb_equal[] = {
+  (size_t) eb_equal_ret,
+};
+static inline size_t eb_equal_ret(size_t a1, size_t r, size_t l) {
     return l == r ? 1 : 0;
 }
-static inline size_t eb_above(size_t a1, size_t r, size_t l) {
+static inline size_t eb_above_ret(size_t a1, size_t r, size_t l);
+static size_t eb_above[] = {
+  (size_t) eb_above_ret,
+};
+static inline size_t eb_above_ret(size_t a1, size_t r, size_t l) {
     return r > l ? 1 : 0;
 }
 static inline void ebz_stol(size_t *exist, char *p) {
@@ -74,7 +125,11 @@ static inline void ebz_stol(size_t *exist, char *p) {
     };
     *exist = r;
 }
-static inline size_t eb_read_DASH_file(size_t a1, size_t f) {
+static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f);
+static size_t eb_read_DASH_file[] = {
+  (size_t) eb_read_DASH_file_ret,
+};
+static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f) {
     char name[1024];
     char *s = name;
     while (f) {
@@ -98,7 +153,7 @@ static inline size_t eb_read_DASH_file(size_t a1, size_t f) {
     ebz_stol(&r, i);
     return r;
 }
-size_t eb_main(size_t c, size_t a1);
+size_t eb_main[];
 int main(int argc, char **argv) {
     size_t a = 0;
     while (argc > 1) {
@@ -107,6 +162,6 @@ int main(int argc, char **argv) {
         ebz_stol(&next, c);
         a = ebz_pair(next, a);
     }
-    int got = (int)eb_main(0, a);
+    int got = ((size_t (*)(size_t, size_t)) eb_main[0])((size_t) eb_main, a);
     return got;
 }

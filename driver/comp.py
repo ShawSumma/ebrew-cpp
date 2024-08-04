@@ -29,4 +29,3 @@ if len(sys.argv) <= 2:
 else:
     src = read(sys.argv[2])
 env.call("main-lang", (string(lang), string(src)))
-env.flush()
