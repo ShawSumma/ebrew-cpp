@@ -109,13 +109,18 @@ if  list
 (list-reverse list)
 list-reverse-from list 0
 
+(list-cat x y)
+if  x
+    pair first x list-cat second x y
+    y
+
 # strings #
 
 (str-eq x y)
 if  x
     if  y
         and equal  first  x first  y
-            str-eq second x second y 
+            str-eq second x second y
         0
     if  y
         0
@@ -168,7 +173,7 @@ rstr-to-num list-reverse x
 if  error-is-char error
     if  equal 10 second error
         put-str "newline"
-    if  equal 32 second error 
+    if  equal 32 second error
         put-str "space"
     if  equal 39 second error
         put-str "signle quote"
@@ -270,11 +275,11 @@ parse-if str equal value test
     error error-from-position state-pos str
         error-from-both
             error-from-wanted error-from-char value
-            error-from-got 
+            error-from-got
                 if  state-has-data str
                     error-from-char state-data str
                     error-from-str "end of file"
- 
+
 (parse-and str (parse1 str (then value str) (error info)) (parse2 str (then value str) (error info)) (then value str) (error info))
 parse1 str
     let v1 value
@@ -290,7 +295,7 @@ parse-and str
         then value str
         error info
     parse-zero-or-more str
-        parse1 str 
+        parse1 str
             then value str
             error info
         then value str
@@ -304,7 +309,7 @@ parse-and str
         then value str
         error info
     parse-zero-or-more str
-        parse1 str 
+        parse1 str
             then value str
             error info
         then value str
@@ -318,16 +323,16 @@ parse-and str
 (binding-of-lambda)  1
 (binding-of-generic) 2
 
-(binding-value value)       pair binding-of-value  value 
+(binding-value value)       pair binding-of-value  value
 (binding-lambda value args generics) pair binding-of-lambda pair value pair args generics
-(binding-generic value)     pair binding-of-generic  value 
+(binding-generic value)     pair binding-of-generic  value
 
 (binding-is-value binding)   equal binding-of-value   first binding
 (binding-is-lambda binding)  equal binding-of-lambda  first binding
 (binding-is-generic binding) equal binding-of-generic first binding
 
 (get-binding-value binding)
-if  binding-is-value binding 
+if  binding-is-value binding
     second binding
 if  binding-is-generic binding
     second binding
@@ -339,7 +344,7 @@ if  binding-is-generic binding
 (name-table-append table binding) pair binding table
 (name-table-lookup table name)
 and table
-if  str-eq name get-binding-value first table 
+if  str-eq name get-binding-value first table
     first table
     name-table-lookup second table name
 
@@ -396,7 +401,7 @@ if  binding-is-lambda bind
 if  binding-is-generic bind
     ast-name get-binding-value bind
     ast-str "???"
-    
+
 # ebrew parser #
 
 (within-range test low high)
@@ -451,7 +456,7 @@ parse-value strip str '(
                 fold generics arg
                      0        value
                     pair binding-generic arg generics
-            let names 
+            let names
                 fold names name
                      names value
                     pair name names
@@ -577,9 +582,9 @@ let str strip str
 let tab-init tab
 parse-one-or-more str
     parse-if str is-digit test
-        then value str 
+        then value str
         error info
-    then0 ast-number str-to-num value str tab 
+    then0 ast-number str-to-num value str tab
     parse-word str
         parse-expr-match str tab value
             parse-call str tab bindings parse-expr str tab then value str tab error info then value str tab error info
@@ -589,7 +594,7 @@ parse-one-or-more str
         parse-str-expr str
             then0 value str tab-init
             error info
-        
+
 (parse-toplevel-single str tab (then value str tab) (error info))
 parse-args str
     let func-bind value
@@ -632,7 +637,7 @@ do  put-str "eb_"
 for c str
     if  equal c '-
         put-str "_DASH_"
-        putchar c 
+        putchar c
 
 (compile-found found)
 if  equal 1 first found
@@ -662,13 +667,12 @@ if  ast-is-call tree
                 defs
             add 1 n
 if  ast-is-lambda tree
-    let d0 defs
     let defs second
         fold duo      def
             pair 0 0  defs
-            pair add 1 first duo 
+            pair add 1 first duo
                  defs-append second duo first def pair 1 first duo
-    let defs second 
+    let defs second
         fold duo         arg
              pair 0 defs first second tree
             pair add 1 first duo
@@ -713,7 +717,7 @@ if  ast-is-str tree
 if  ast-is-function tree
     let args second second first second tree
     let name second first second first second tree
-    let defs 
+    let defs
         fold xdefs arg
              0     args
             defs-append xdefs second arg pair 0 second arg
@@ -747,9 +751,9 @@ if  ast-is-lambda tree
     let defs second
         fold duo      def
             pair 0 0  defs
-            pair add 1 first duo 
+            pair add 1 first duo
                  defs-append second duo first def pair 1 first duo
-    let defs second 
+    let defs second
         fold duo         arg
              pair 0 defs first second tree
             pair add 1 first duo
@@ -777,7 +781,7 @@ if  ast-is-lambda tree
         do  put-str "l"
         do  path
         do  put-str "["
-        do  put-num add 1 n 
+        do  put-num add 1 n
         do  put-str "]="
         do  compile-found second def
         do  put-str ";"
@@ -899,6 +903,28 @@ if  ast-is-name tree
             "w"
     "__ERROR__"
 
+(ir-form-type-error) 0
+(ir-form-type-let) 1
+(ir-form-type-block) 2
+(ir-form-type-call) 3
+(ir-form-type-function) 4
+(ir-form-type-params) 5
+(ir-form-type-closure) 6
+(ir-form-type-extern) 7
+(ir-form-type-return) 8
+
+(ir-form-type-to-str type)
+if equal type ir-form-type-error "error"
+if equal type ir-form-type-let "let"
+if equal type ir-form-type-block "block"
+if equal type ir-form-type-call "call"
+if equal type ir-form-type-function "function"
+if equal type ir-form-type-params "params"
+if equal type ir-form-type-closure "closure"
+if equal type ir-form-type-extern "extern"
+if equal type ir-form-type-return "return"
+    "unknown"
+
 (ir-of-form type args) pair 0 pair type args
 (ir-is-form ir) equal 0 first ir
 (ir-form-type ir) first second ir
@@ -912,6 +938,20 @@ if  ast-is-name tree
 (ir-is-number ir) equal 2 first ir
 (ir-number-value ir) second ir
 
+(ir-of-string string) pair 3 string
+(ir-is-string ir) equal 3 first ir
+(ir-string-value ir) second ir
+
+(ir-of-form-block args)
+ir-of-form ir-form-type-block
+    fold e el
+        0 args
+        list-cat
+            if  and ir-is-form el equal ir-form-type-block ir-form-type el
+                ir-form-args el
+                pair el 0
+            e
+
 (ir-print-spaces n)
 and n
 do  putchar 32
@@ -919,7 +959,7 @@ do  putchar 32
 
 (ir-print-depth ir n)
 if  ir-is-form ir
-    let type ir-form-type ir
+    let type ir-form-type-to-str ir-form-type ir
     let args ir-form-args ir
     do  put-str "("
     do  put-str type
@@ -933,43 +973,96 @@ if  ir-is-ident ir
     put-str ir-ident-text ir
 if  ir-is-number ir
     put-num ir-number-value ir
+if  ir-is-string ir
+    do  putchar '"
+    do  put-str ir-number-value ir
+        putchar '"
 put-str "<unk>"
 
 (ir-print ir)
 ir-print-depth ir 0
 
+(compile-ir-pre tree (get-path) defs (compile-ir tree (get-path) defs))
+if  ast-is-call tree
+    second fold state el
+            pair 0 0 second second tree
+        let n first state
+        pair add 1 n
+            list-cat
+                compile-ir-pre
+                    el
+                    str-cat get-path
+                    str-cat "_"
+                        num-to-str n
+                    defs
+                    compile-ir tree get-path defs
+                second state
+if  ast-is-lambda tree
+    let path str-cat get-path "_ret"
+    let defs second
+        fold duo      def
+            pair 0 0  defs
+            pair add 1 first duo
+                 defs-append second duo first def pair 1 first duo
+    let defs second
+        fold duo         arg
+             pair 0 defs first second tree
+            pair add 1 first duo
+                 defs-append second duo second arg pair 0 second arg
+    list-cat
+        compile-ir-pre
+            second second tree
+            path
+            defs
+            compile-ir tree get-path defs
+        pair
+            ir-of-form ir-form-type-function
+                pair ir-of-ident path
+                pair ir-of-form ir-form-type-params
+                    map arg first second tree
+                        ir-of-ident second arg
+                pair ir-of-form-block
+                    pair compile-ir second second tree path defs
+                        0
+                pair ir-of-form ir-form-type-return
+                    pair ir-of-ident path
+                        0
+                    0
+            0
+    0
+
 (compile-ir tree (get-path) defs)
 if  ast-is-name tree
     let found defs-lookup defs second tree
     if  found
-        ir-of-form "let"
+        ir-of-form ir-form-type-let
             pair ir-of-ident get-path
-            pair ir-of-ident second found
+            pair ir-of-ident second defs-lookup defs second tree
                 0
-        ir-of-form "error"
+        ir-of-form ir-form-type-error
             pair ir-of-ident get-path
                 0
 if  ast-is-call tree
     let func first second tree
-    if  and ast-is-name func
-            1
-        ir-of-form "block"
-            let func-path str-cat get-path "_func"
-            pair ir-of-form "let"
-                pair ir-of-ident func-path
-                pair ir-of-ident second func
-                    0
-            pair ir-of-form "block"
-                    list-reverse second fold state el
+    ir-of-form-block
+        let func-path str-cat get-path "_func"
+        pair ir-of-form ir-form-type-let
+            pair ir-of-ident func-path
+            pair ir-of-ident second func
+                0
+        pair ir-of-form-block
+                list-reverse second fold state el
                         pair 0 0 list-reverse second second tree
-                        let n first state
-                        let path
-                            str-cat get-path
-                            str-cat "_"
-                                num-to-str n
-                        let arg compile-ir el path defs
-                        pair add 1 n pair arg second state
-            pair ir-of-form "call"
+                    let n first state
+                    let path
+                        str-cat get-path
+                        str-cat "_"
+                            num-to-str n
+                    let arg compile-ir el path defs
+                    pair add 1 n pair arg second state
+        pair ir-of-form ir-form-type-let
+            pair ir-of-ident get-path
+            pair ir-of-form ir-form-type-call
                 pair ir-of-ident func-path
                     list-reverse second fold state el
                         pair 0 0 list-reverse second second tree
@@ -981,60 +1074,66 @@ if  ast-is-call tree
                                     num-to-str n
                             second state
                 0
-        ir-of-ident "<TODO: call-lambda>"
+            0
 if  ast-is-function tree
-    let name second first second first second tree
-    let args second second first second tree
-    let defs 
+    let path str-cat
+        second first second first second tree
+        "_ret"
+    let defs
         fold xdefs arg
-             0     args
+             0     second second first second tree
             defs-append xdefs second arg pair 0 second arg
-    ir-of-form "function"
-        pair ir-of-ident name
-        pair ir-of-form "params"
-            map arg args
+    let pre
+        compile-ir-pre
+            second second tree
+            path
+            defs
+            compile-ir tree path defs
+    let base ir-of-form ir-form-type-function
+        pair ir-of-ident second first second first second tree
+        pair ir-of-form ir-form-type-params
+            map arg second second first second tree
                 ir-of-ident second arg
-        pair ir-of-form "block"
-            pair compile-ir second second tree name defs
+        pair ir-of-form-block
+            pair compile-ir second second tree get-path defs
+                0
+        pair ir-of-form ir-form-type-return
+            pair ir-of-ident get-path
                 0
             0
+        list-cat pre pair base 0
 if  ast-is-number tree
-    ir-of-form "let"
-        pair get-path
+    ir-of-form ir-form-type-let
+        pair ir-of-ident get-path
         pair ir-of-number second tree
             0
 if  ast-is-extern tree
-    ir-of-form "extern"
+    pair ir-of-form ir-form-type-extern
         pair ir-of-ident second first second second tree
-        pair ir-of-form "params"
+        pair ir-of-form ir-form-type-params
             map arg second second second tree
                 ir-of-ident second arg
             0
+        0
 if  ast-is-lambda tree
-    let defs-init defs
     let defs second
         fold duo      def
             pair 0 0  defs
-            pair add 1 first duo 
+            pair add 1 first duo
                  defs-append second duo first def pair 1 first duo
-    let defs second 
+    let defs second
         fold duo         arg
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    ir-of-form "closure"
+    ir-of-form ir-form-type-closure
         pair ir-of-ident get-path
             map arg first second tree
                 ir-of-ident second arg
 if  ast-is-str tree
-    ir-of-form "let"
+    ir-of-form ir-form-type-let
         pair ir-of-ident get-path
-        pair fold ret char
-                ir-of-number 0 list-reverse second tree
-                ir-of-form "pair"
-                    pair ir-of-number char
-                    pair ret
-                        0
+        pair ir-of-string second tree
             0
 ir-of-ident "<TODO: else>"
 
@@ -1054,8 +1153,10 @@ parse-toplevel str-to-state str binding-table
     for node values
         let ir compile-ir node 0 0
         do  put-line
-        do  ir-print ir
-            put-line
+        do  map el ir
+            do ir-print el
+                put-line
+            0
     put-error info
 
 (err-unknown-lang lang)
@@ -1076,7 +1177,7 @@ err-unknown-lang lang
 main-lang lang read-file file
 
 (comp args file lang)
-if  and args str-eq "--target" first args  
+if  and args str-eq "--target" first args
     comp second second args file first second args
     comp-final first args lang
 
