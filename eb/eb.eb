@@ -630,10 +630,11 @@ if  str-eq name first first defs
 (ir-form-type-call) 3
 (ir-form-type-function) 4
 (ir-form-type-params) 5
-(ir-form-type-closure) 6
+(ir-form-type-let-closure) 6
 (ir-form-type-extern) 7
 (ir-form-type-return) 8
-(ir-form-type-capture) 9
+(ir-form-type-closure-get) 9
+(ir-form-type-let-string) 10
 
 (ir-form-type-to-str type)
 if equal type ir-form-type-error "error"
@@ -642,10 +643,11 @@ if equal type ir-form-type-block "block"
 if equal type ir-form-type-call "call"
 if equal type ir-form-type-function "function"
 if equal type ir-form-type-params "params"
-if equal type ir-form-type-closure "closure"
+if equal type ir-form-type-let-closure "let-closure"
 if equal type ir-form-type-extern "extern"
 if equal type ir-form-type-return "return"
-if equal type ir-form-type-capture "capture"
+if equal type ir-form-type-closure-get "closure-get"
+if equal type ir-form-type-let-string "let-string"
     "unknown"
 
 (ir-of-form type args) pair 0 pair type args
@@ -698,7 +700,7 @@ if  ir-is-number ir
     put-num ir-number-value ir
 if  ir-is-string ir
     do  putchar '"
-    do  put-str ir-number-value ir
+    do  put-str ir-string-value ir
         putchar '"
 put-str "<unk>"
 
@@ -712,16 +714,18 @@ if  ast-is-call tree
         let n first state
         pair add 1 n
             concat
-                compile-ir-pre
-                    el
+                let path
                     concat get-path
                     concat "_"
                         num-to-str n
+                compile-ir-pre
+                    el
+                    path
                     defs
                     compile-ir tree get-path defs
                 second state
 if  ast-is-lambda tree
-    let path concat get-path "_ret"
+    let path concat get-path "_lam"
     let defs second
         fold duo      def
             pair 0 0  defs
@@ -740,16 +744,16 @@ if  ast-is-lambda tree
             compile-ir tree get-path defs
         pair
             ir-of-form ir-form-type-function
-                pair ir-of-ident get-path
+                pair ir-of-ident path
                 pair ir-of-form ir-form-type-params
                     pair ir-of-ident "closure"
                     map arg first second tree
                         ir-of-ident second arg
                 pair ir-of-form-block
                     pair compile-ir second second tree path defs
-                        0
-                pair ir-of-form ir-form-type-return
-                    pair ir-of-ident path
+                    pair ir-of-form ir-form-type-return
+                        pair ir-of-ident path
+                            0
                         0
                     0
             0
@@ -758,32 +762,24 @@ if  ast-is-lambda tree
 (compile-ir tree (get-path) defs)
 if  ast-is-name tree
     let found defs-lookup defs second tree
-    if  found
-        let body
-            if equal 1 first found
-                ir-of-form ir-form-type-capture
-                    pair ir-of-ident "closure"
-                    pair ir-of-number add 1 second found
-                        0
-            if equal 0 first found
-                ir-of-ident second defs-lookup defs second tree
-                ir-of-form ir-form-type-error pair "variable found, but not identified" 0
-        ir-of-form ir-form-type-let
-            pair ir-of-ident get-path
-            pair body
-                0
-        ir-of-form ir-form-type-error
-            pair ir-of-ident get-path
-                0
+    ir-of-form ir-form-type-let
+        pair ir-of-ident get-path
+        pair if and found equal 1 first found
+            ir-of-form ir-form-type-closure-get
+                pair ir-of-ident "closure"
+                pair ir-of-number add 1 second found
+                    0
+            ir-of-ident second tree
+            0
 if  ast-is-call tree
     ir-of-form-block
-        let lambda-path concat get-path "_lambda"
+        let lambda-path concat get-path "_clo"
         let func-path concat get-path "_fun"
         let found defs-lookup defs second first second tree
         let func-pair
             if and found equal 1 first found
                 pair
-                    ir-of-form ir-form-type-capture
+                    ir-of-form ir-form-type-closure-get
                         pair ir-of-ident lambda-path
                         pair ir-of-number 0
                             0
@@ -797,8 +793,8 @@ if  ast-is-call tree
             pair first func-pair
                 0
         pair ir-of-form-block
-                reverse second fold state el
-                        pair 0 0 reverse second second tree
+                second fold state el
+                        pair 0 0 second second tree
                     let n first state
                     let path
                         concat get-path
@@ -811,8 +807,8 @@ if  ast-is-call tree
             pair ir-of-form ir-form-type-call
                 pair ir-of-ident func-path
                 pair second func-pair
-                    reverse second fold state el
-                        pair 0 0 reverse second second tree
+                    second fold state el
+                        pair 0 0 second second tree
                         let n first state
                         pair add 1 n
                         pair ir-of-ident
@@ -835,7 +831,7 @@ if  ast-is-function tree
             second second tree
             path
             defs
-            compile-ir tree path defs
+            compile-ir tree get-path defs
     let base ir-of-form ir-form-type-function
         pair ir-of-ident second first second first second tree
         pair ir-of-form ir-form-type-params
@@ -844,9 +840,9 @@ if  ast-is-function tree
                 ir-of-ident second arg
         pair ir-of-form-block
             pair compile-ir second second tree path defs
-                0
-        pair ir-of-form ir-form-type-return
-            pair ir-of-ident path
+            pair ir-of-form ir-form-type-return
+                pair ir-of-ident path
+                    0
                 0
             0
         concat pre pair base 0
@@ -864,6 +860,8 @@ if  ast-is-extern tree
             0
         0
 if  ast-is-lambda tree
+    let defs-init defs
+    let path concat get-path "_lam"
     let defs second
         fold duo      def
             pair 0 0  defs
@@ -874,37 +872,183 @@ if  ast-is-lambda tree
              pair 0 defs first second tree
             pair add 1 first duo
                  defs-append second duo second arg pair 0 second arg
-    ir-of-form ir-form-type-closure
+    ir-of-form ir-form-type-let-closure
         pair ir-of-ident get-path
-            map arg first second tree
-                ir-of-ident second arg
+        pair ir-of-ident path
+            map def reverse defs-init
+                let found second def
+                if equal 1 first found
+                    ir-of-form ir-form-type-closure-get
+                        pair ir-of-ident "closure"
+                        pair ir-of-number add 1 second found
+                            0
+                    ir-of-ident second found
 if  ast-is-str tree
-    ir-of-form ir-form-type-let
+    ir-of-form ir-form-type-let-string
         pair ir-of-ident get-path
         pair ir-of-string second tree
             0
 ir-of-ident "<TODO: else>"
 
-(main-ir str)
+(for-ir [name] str (in name))
 parse-toplevel str-to-state str binding-table
     for node values
-        let ir compile-ir node 0 0
-        do  put-line
-        do  map el ir
-            do ir-print el
-                put-line
-            0
+        for el compile-ir node 0 0
+            in el
     put-error info
 
-(err-unknown-lang lang)
-do  put-str "unknown target: "
-do  put-str lang
-    put-line
+(endline)
+pair 10 0
+
+
+(ir-fmt-c ir)
+if  ir-is-form ir
+    let type ir-form-type ir
+    let args ir-form-args ir
+    if  equal type ir-form-type-let
+        concat "  size_t "
+        concat ir-fmt-c first args
+        concat " = (size_t) ("
+        concat ir-fmt-c first second args
+        concat ");"
+            endline
+    if  equal type ir-form-type-block
+        concat "{"
+        concat endline
+        concat "  EB_DEBUG();"
+        concat endline
+        concat fold c arg
+            0 args
+            concat ir-fmt-c arg
+                c
+        "}"
+    if  equal type ir-form-type-call
+        concat "((size_t (*)("
+        concat
+            second second
+            fold c arg
+                 0 second args
+                concat ", "
+                concat "size_t"
+                    c
+        concat "))"
+        concat ir-fmt-c first args
+        concat ")("
+        concat
+            second second
+            fold c arg
+                 0 second args
+                concat ", "
+                concat "(size_t) ("
+                concat ir-fmt-c arg
+                concat ")"
+                    c
+                ")"
+    if  equal type ir-form-type-function
+        concat "size_t "
+        concat ir-fmt-c first args
+        concat ir-fmt-c first second args
+        concat ir-fmt-c first second second args
+            endline
+    if  equal type ir-form-type-params
+        concat "("
+        concat
+            fold c arg
+                 0 args
+                concat "size_t "
+                concat ir-fmt-c arg
+                concat and c ", "
+                    c
+                ")"
+    if  equal type ir-form-type-let-closure
+        concat "  size_t "
+        concat ir-fmt-c first args
+        concat "[] = {"
+        concat endline
+        concat
+            fold c arg
+                 0 reverse second args
+                concat c
+                concat "    (size_t) ("
+                concat ir-fmt-c arg
+                concat "),"
+                concat endline
+                    0
+        concat "  };"
+            endline
+    if  equal type ir-form-type-extern
+        0
+    if  equal type ir-form-type-return
+        concat "  return "
+        concat ir-fmt-c first args
+        concat ";"
+            endline
+    if  equal type ir-form-type-closure-get
+        concat "((size_t *)"
+        concat ir-fmt-c first args
+        concat ")["
+        concat ir-fmt-c first second args
+            "]"
+    if  equal type ir-form-type-let-string
+        concat "  static size_t "
+        concat ir-fmt-c first args
+        concat " = 0;"
+        concat endline
+        concat "  ebz_stol(&"
+        concat ir-fmt-c first args
+        concat ", "
+        concat ir-fmt-c first second args
+        concat ");"
+        concat endline
+            0
+        0
+if  ir-is-ident ir
+    concat "eb_"
+    reverse
+        fold s c
+             0 reverse ir-ident-text ir
+            if  equal c '-
+                concat "_DASH_" s
+                pair c s
+if  ir-is-number ir
+    num-to-str ir-number-value ir
+if  ir-is-string ir
+    concat pair '" 0
+    concat ir-string-value ir
+        pair '" 0
+    0
+
+(ir-fmt-c-decl ir)
+if  ir-is-form ir
+    if  equal ir-form-type ir ir-form-type-function
+        let args ir-form-args ir
+        concat "size_t "
+        concat ir-fmt-c first args
+        concat ir-fmt-c first second args
+        concat ";"
+            endline
+        0
+    0
 
 (main-lang lang str)
 if  str-eq lang "ir"
-    main-ir str
-err-unknown-lang lang
+    for-ir ir str
+        do  put-line
+        do  ir-print ir
+            put-line
+if  str-eq lang "c"
+    parse-toplevel str-to-state str binding-table
+        do put-str "#include <ebrew.h>"
+        do put-str endline
+        for node values
+            let ir compile-ir node 0 0
+            do  put-str ir-fmt-c-decl first reverse ir
+            for el ir
+                put-str ir-fmt-c el
+        put-error info
+do  put-str "unknown target: "
+do  put-str lang
+    put-line
 
 (read-file name) ?
 

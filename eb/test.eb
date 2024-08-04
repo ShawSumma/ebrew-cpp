@@ -56,5 +56,5 @@ if  n
 do  put-num n
     put-line
 
-(main)
+(main args)
 put-num-line 10

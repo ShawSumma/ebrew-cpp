@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+// #define EB_DEBUG() printf("%s\n", __FUNCTION__)
+#define EB_DEBUG()( (void) 0)
+
 static uint8_t ebz_alloc_mem[1 << 24];
 static size_t ebz_alloc_total = 0;
 static inline void *ebz_alloc_bytes(size_t size) {
@@ -29,7 +32,7 @@ static inline size_t ebz_second(size_t p) {
     return ((size_t *)p)[1];
 }
 static inline size_t ebz_if(size_t c, size_t t, size_t e) {
-    if (c) {
+    if (c != 0) {
         return ((size_t(*)(size_t)) * (size_t *)t)(t);
     } else {
         return ((size_t(*)(size_t)) * (size_t *)e)(e);
