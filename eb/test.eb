@@ -1,11 +1,28 @@
 
-(add x y) ?
+(putchar x) ?
 
-(let [x] x (in x)) in x
+(let [name] name (in name)) in name
 
-(no-used)
+(do x y) y
+
+(add y x) ?
+(mul y x) ?
+
+(val)
+let v0 0
 let v1 1
 let v2 2
 let v3 3
 let v4 4
-    v1
+let v5 5
+let v6 6
+let v7 7
+let v8 8
+let v9 9
+let v10 10
+let tmp 0
+    add 96 v2
+    
+
+(main args)
+putchar val

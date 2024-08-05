@@ -745,11 +745,8 @@ ir-print-depth ir 0
 
 (scan-ast-captures tree defs)
 if  ast-is-name tree
-    let found defs-lookup defs cdr tree
-    and found
-    and equal 1 car found
-        cons cdr tree
-            0
+    cons cdr tree
+        0
 if  ast-is-call tree
     flatten
         let r map arg cdr tree
@@ -793,6 +790,8 @@ if  ast-is-call tree
                 cdr state
 if  ast-is-lambda tree
     let path concat get-path "_lam"
+    let defs
+        defs-filter-keep-used cdr cdr tree defs defs
     let defs cdr
         fold duo      def
             cons 0 0  defs
@@ -930,8 +929,10 @@ if  ast-is-extern tree
             0
         0
 if  ast-is-lambda tree
-    let defs-init defs
     let path concat get-path "_lam"
+    let defs
+        defs-filter-keep-used cdr cdr tree defs defs
+    let defs-init defs
     let defs cdr
         fold duo      def
             cons 0 0  defs
@@ -945,7 +946,7 @@ if  ast-is-lambda tree
     ir-of-form ir-form-type-let-closure
         cons ir-of-ident get-path
         cons ir-of-ident path
-            map def reverse defs-filter-keep-used cdr cdr tree defs defs-init
+            map def reverse defs-init
                 let found cdr def
                 if equal 1 car found
                     ir-of-form ir-form-type-closure-get
@@ -1030,7 +1031,9 @@ if  ir-is-form ir
     if  equal type ir-form-type-let-closure-global
         do  put-str "size_t "
         do  put-ir-c car args
-        do  put-str "[] = {"
+        do  put-str "["
+        do  put-num length cdr args 
+        do  put-str "] = {"
         do  put-line
         do  for arg cdr args
                 do  put-str "  (size_t) ("
@@ -1044,7 +1047,9 @@ if  ir-is-form ir
     if  equal type ir-form-type-let-closure
         do  put-str "  size_t "
         do  put-ir-c car args
-        do  put-str "[] = {"
+        do  put-str "["
+        do  put-num length cdr args 
+        do  put-str "] = {"
         do  put-line
         do  for arg cdr args
                 do  put-str "    (size_t) ("

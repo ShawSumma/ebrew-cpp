@@ -30,7 +30,7 @@ struct ebz_pair_t {
   uint32_t first;
   uint32_t second;
 };
-static ebz_pair_t ebz_alloc_mem[1 << 20];
+static ebz_pair_t ebz_alloc_mem[1 << 24];
 static size_t ebz_alloc_total = 1;
 static inline size_t ebz_pair(size_t a, size_t b) {
     size_t ret = ebz_alloc_total++;
@@ -56,70 +56,70 @@ static inline size_t ebz_if(size_t c, size_t t, size_t e) {
     }
 }
 static inline size_t eb_putchar_ret(size_t a1, size_t a2);
-static size_t eb_putchar[] = {
+static size_t eb_putchar[1] = {
   (size_t) eb_putchar_ret,
 };
 static inline size_t eb_putchar_ret(size_t a1, size_t a2) {
     return ebz_putchar(a2);
 }
 static inline size_t eb_cons_ret(size_t a1, size_t a2, size_t a3);
-static size_t eb_cons[] = {
+static size_t eb_cons[1] = {
   (size_t) eb_cons_ret,
 };
 static inline size_t eb_cons_ret(size_t a1, size_t a2, size_t a3) {
     return ebz_pair(a2, a3);
 }
 static inline size_t eb_car_ret(size_t a1, size_t a2);
-static size_t eb_car[] = {
+static size_t eb_car[1] = {
   (size_t) eb_car_ret,
 };
 static inline size_t eb_car_ret(size_t a1, size_t a2) { return ebz_first(a2); }
 static inline size_t eb_cdr_ret(size_t a1, size_t a2);
-static size_t eb_cdr[] = {
+static size_t eb_cdr[1] = {
   (size_t) eb_cdr_ret,
 };
 static inline size_t eb_cdr_ret(size_t a1, size_t a2) { return ebz_second(a2); }
 static inline size_t eb_if_ret(size_t a1, size_t a2, size_t a3, size_t a4);
-static size_t eb_if[] = {
+static size_t eb_if[1] = {
   (size_t) eb_if_ret,
 };
 static inline size_t eb_if_ret(size_t a1, size_t a2, size_t a3, size_t a4) {
     return ebz_if(a2, a3, a4);
 }
 static inline size_t eb_add_ret(size_t a1, size_t r, size_t l);
-static size_t eb_add[] = {
+static size_t eb_add[1] = {
   (size_t) eb_add_ret,
 };
 static inline size_t eb_add_ret(size_t a1, size_t r, size_t l) { return l + r; }
 static inline size_t eb_sub_ret(size_t a1, size_t r, size_t l);
-static size_t eb_sub[] = {
+static size_t eb_sub[1] = {
   (size_t) eb_sub_ret,
 };
 static inline size_t eb_sub_ret(size_t a1, size_t r, size_t l) { return l - r; }
 static inline size_t eb_mul_ret(size_t a1, size_t r, size_t l);
-static size_t eb_mul[] = {
+static size_t eb_mul[1] = {
   (size_t) eb_mul_ret,
 };
 static inline size_t eb_mul_ret(size_t a1, size_t r, size_t l) { return l * r; }
 static inline size_t eb_div_ret(size_t a1, size_t r, size_t l);
-static size_t eb_div[] = {
+static size_t eb_div[1] = {
   (size_t) eb_div_ret,
 };
 static inline size_t eb_div_ret(size_t a1, size_t r, size_t l) { return l / r; }
 static inline size_t eb_mod_ret(size_t a1, size_t r, size_t l);
-static size_t eb_mod[] = {
+static size_t eb_mod[1] = {
   (size_t) eb_mod_ret,
 };
 static inline size_t eb_mod_ret(size_t a1, size_t r, size_t l) { return l % r; }
 static inline size_t eb_equal_ret(size_t a1, size_t r, size_t l);
-static size_t eb_equal[] = {
+static size_t eb_equal[1] = {
   (size_t) eb_equal_ret,
 };
 static inline size_t eb_equal_ret(size_t a1, size_t r, size_t l) {
     return l == r ? 1 : 0;
 }
 static inline size_t eb_above_ret(size_t a1, size_t r, size_t l);
-static size_t eb_above[] = {
+static size_t eb_above[1] = {
   (size_t) eb_above_ret,
 };
 static inline size_t eb_above_ret(size_t a1, size_t r, size_t l) {
@@ -140,7 +140,7 @@ static inline void ebz_stol(size_t *exist, char *p) {
     *exist = r;
 }
 static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f);
-static size_t eb_read_DASH_file[] = {
+static size_t eb_read_DASH_file[1] = {
   (size_t) eb_read_DASH_file_ret,
 };
 static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f) {
@@ -170,7 +170,7 @@ static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f) {
     ebz_stol(&r, i);
     return r;
 }
-extern size_t eb_main[];
+extern size_t eb_main[1];
 int main(int argc, char **argv) {
     size_t a = 0;
     while (argc > 1) {
