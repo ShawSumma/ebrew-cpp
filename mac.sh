@@ -2,7 +2,7 @@
 
 set -ex
 
-test -d temper.out || temper build -b py
+test -d temper.out || temper build -b js
 
 export PYTHONPATH=temper.out/py/*
 node driver/comp.mjs c eb/eb.eb > ebrew.c

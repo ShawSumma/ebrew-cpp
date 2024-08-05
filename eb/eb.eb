@@ -3,9 +3,9 @@
 
 (if c (t) (f)) ?
 
-(pair a b) ?
-(first p) ?
-(second p) ?
+(cons a b) ?
+(car p) ?
+(cdr p) ?
 
 (putchar char) ?
 
@@ -41,29 +41,38 @@ in val
 
 (for [name] list (in name))
 and list
-do  in first list
-    for name second list in name
+do  in car list
+    for name cdr list in name
 
 
 (fold [last name] start list (in last name))
 if  list
-    in  fold last name start second list in last name
-        first list
+    in  fold last name start cdr list in last name
+        car list
     start
 
 (map [name] list (in name))
 and list
-pair in first list
-     map name second list in name
+cons in car list
+     map name cdr list in name
+
+(filter [name] list (cond name))
+and list
+let rest
+    filter name cdr list cond name
+if  cond car list
+    cons car list rest
+    rest
+    
 
 (contains list (check el))
 and list
-    or  check first list
-        contains second list check el
+    or  check car list
+        contains cdr list check el
 
 (length list)
 and list
-    add 1 length second list
+    add 1 length cdr list
 
 # io #
 
@@ -89,10 +98,10 @@ if  n
 (put-list-sep-from n tree (sep) (then el))
 and tree
 do  and n sep
-do  then first tree
+do  then car tree
     put-list-sep-from
         add 1 n
-        second tree
+        cdr tree
         sep
         then el
 
@@ -103,7 +112,7 @@ put-list-sep-from 0 tree sep then el
 
 (reverse-from list res)
 if  list
-    reverse-from second list pair first list res
+    reverse-from cdr list cons car list res
     res
 
 (reverse list)
@@ -111,26 +120,50 @@ reverse-from list 0
 
 (concat x y)
 if  x
-    pair first x concat second x y
+    cons car x concat cdr x y
     y
+
+(flatten ls)
+fold c el
+     0 ls
+    concat el c
 
 # strings #
 
 (str-eq x y)
 if  x
     if  y
-        and equal  first  x first  y
-            str-eq second x second y
+        and equal  car  x car  y
+            str-eq cdr x cdr y
         0
     if  y
         0
         1
 
+# uniq sets #
+
+(has-str ls str)
+and ls
+or  str-eq str car ls
+    has-str cdr ls str
+
+(uniq-str-add ls str)
+if  has-str ls str
+    ls
+    cons str ls
+
+(uniq-str ls)
+fold x el
+     0 ls
+    uniq-str-add x el
+
+# converters #
+
 (num-to-str-nonzero n)
 and above n 0
 concat
     num-to-str-nonzero div 10 n
-    pair add '0 mod 10 n 0
+    cons add '0 mod 10 n 0
 
 (num-to-str n)
 if  n
@@ -139,61 +172,61 @@ if  n
 
 (rstr-to-num x)
 and x
-    add mul 10 rstr-to-num second x
-        sub '0 first x
+    add mul 10 rstr-to-num cdr x
+        sub '0 car x
 
 (str-to-num x)
 rstr-to-num reverse x
 
 # error library #
 
-(error-from-str msg) pair 0 msg
-(error-from-both n1 n2) pair 1 pair n1 n2
-(error-from-wanted exp) pair 2 exp
-(error-from-got rec) pair 3 rec
-(error-from-position pos error) pair 4 pair pos error
-(error-from-char chr) pair 5 chr
+(error-from-str msg) cons 0 msg
+(error-from-both n1 n2) cons 1 cons n1 n2
+(error-from-wanted exp) cons 2 exp
+(error-from-got rec) cons 3 rec
+(error-from-position pos error) cons 4 cons pos error
+(error-from-char chr) cons 5 chr
 
-(error-is-str error) equal 0 first error
-(error-is-both error) equal 1 first error
-(error-is-wanted error) equal 2 first error
-(error-is-got error) equal 3 first error
-(error-is-position error) equal 4 first error
-(error-is-char error) equal 5 first error
+(error-is-str error) equal 0 car error
+(error-is-both error) equal 1 car error
+(error-is-wanted error) equal 2 car error
+(error-is-got error) equal 3 car error
+(error-is-position error) equal 4 car error
+(error-is-char error) equal 5 car error
 
 (put-error-body error)
 if  error-is-char error
-    if  equal 10 second error
+    if  equal 10 cdr error
         put-str "newline"
-    if  equal 32 second error
+    if  equal 32 cdr error
         put-str "space"
-    if  equal 39 second error
+    if  equal 39 cdr error
         put-str "signle quote"
         do  putchar 39
-        do  putchar second error
+        do  putchar cdr error
             putchar 39
 if  error-is-str error
-    put-str second error
+    put-str cdr error
 if  error-is-both error
-    do  put-error-body first second error
+    do  put-error-body car cdr error
     do  put-str " "
-        put-error-body second second error
+        put-error-body cdr cdr error
 if  error-is-wanted error
     do  put-str "(Wanted: "
-    do  put-error-body second error
+    do  put-error-body cdr error
         put-str ")"
 if  error-is-got error
     do  put-str "(Got: "
-    do  put-error-body second error
+    do  put-error-body cdr error
         put-str ")"
 if  error-is-position error
-    let pos first second error
+    let pos car cdr error
     do  put-str "At Line "
-    do  put-num first pos
+    do  put-num car pos
     do  put-str ", Col "
-    do  put-num second pos
+    do  put-num cdr pos
     do  put-str ": "
-        put-error-body second second error
+        put-error-body cdr cdr error
     0
 
 (put-error error)
@@ -202,33 +235,33 @@ do  put-error-body error
 # parser library #
 
 (state-has-data str)
-second str
+cdr str
 
 (state-data str)
-first second str
+car cdr str
 
 (state-pos str)
-first str
+car str
 
 (state-line str)
-first state-pos str
+car state-pos str
 
 (state-col str)
-second state-pos str
+cdr state-pos str
 
 (str-to-state str)
-pair pair 1 1 str
+cons cons 1 1 str
 
 (state-skip str)
-let data second str
+let data cdr str
 let chr state-data str
 let col state-col str
 let line state-line str
-    pair
+    cons
         if  equal chr 10
-            pair add 1 line 1
-            pair line       add 1 col
-        second data
+            cons add 1 line 1
+            cons line       add 1 col
+        cdr data
 
 (strip-comment str)
 if  not state-has-data str
@@ -277,7 +310,7 @@ parse1 str
     let v1 value
     parse2 str
         let v2 value
-        then pair v1 v2 str
+        then cons v1 v2 str
         error info
     error info
 
@@ -315,45 +348,45 @@ parse-and str
 (binding-of-lambda)  1
 (binding-of-generic) 2
 
-(binding-value value)       pair binding-of-value  value
-(binding-lambda value args generics) pair binding-of-lambda pair value pair args generics
-(binding-generic value)     pair binding-of-generic  value
+(binding-value value)       cons binding-of-value  value
+(binding-lambda value args generics) cons binding-of-lambda cons value cons args generics
+(binding-generic value)     cons binding-of-generic  value
 
-(binding-is-value binding)   equal binding-of-value   first binding
-(binding-is-lambda binding)  equal binding-of-lambda  first binding
-(binding-is-generic binding) equal binding-of-generic first binding
+(binding-is-value binding)   equal binding-of-value   car binding
+(binding-is-lambda binding)  equal binding-of-lambda  car binding
+(binding-is-generic binding) equal binding-of-generic car binding
 
 (get-binding-value binding)
 if  binding-is-value binding
-    second binding
+    cdr binding
 if  binding-is-generic binding
-    second binding
-    get-binding-value first second binding
+    cdr binding
+    get-binding-value car cdr binding
 
-(get-binding-args binding)     first  second second binding
-(get-binding-generics binding) second second second binding
+(get-binding-args binding)     car  cdr cdr binding
+(get-binding-generics binding) cdr cdr cdr binding
 
-(name-table-append table binding) pair binding table
+(name-table-append table binding) cons binding table
 (name-table-lookup table name)
 and table
-if  str-eq name get-binding-value first table
-    first table
-    name-table-lookup second table name
+if  str-eq name get-binding-value car table
+    car table
+    name-table-lookup cdr table name
 
-(binding-table) pair 0 0
+(binding-table) cons 0 0
 
 (binding-table-append-generic tab binding)
-pair first tab
-     name-table-append second tab binding
+cons car tab
+     name-table-append cdr tab binding
 (binding-table-append tab binding)
-pair name-table-append first tab binding
-     second tab
+cons name-table-append car tab binding
+     cdr tab
 
 (binding-table-lookup-generic tab binding)
-name-table-lookup second tab binding
+name-table-lookup cdr tab binding
 
 (binding-table-lookup tab binding)
-or  name-table-lookup first tab binding
+or  name-table-lookup car tab binding
     binding-value binding
 # ast #
 
@@ -365,27 +398,27 @@ or  name-table-lookup first tab binding
 (ast-of-lambda)   5
 (ast-of-str)      6
 
-(ast-name name)          pair ast-of-name     name
-(ast-call args)          pair ast-of-call     args
-(ast-function args then) pair ast-of-function pair args then
-(ast-number num)         pair ast-of-number   num
-(ast-extern args)        pair ast-of-extern   args
-(ast-lambda args then)   pair ast-of-lambda   pair args then
-(ast-str str)            pair ast-of-str      str
+(ast-name name)          cons ast-of-name     name
+(ast-call args)          cons ast-of-call     args
+(ast-function args then) cons ast-of-function cons args then
+(ast-number num)         cons ast-of-number   num
+(ast-extern args)        cons ast-of-extern   args
+(ast-lambda args then)   cons ast-of-lambda   cons args then
+(ast-str str)            cons ast-of-str      str
 
-(ast-is-name tree)     equal ast-of-name     first tree
-(ast-is-call tree)     equal ast-of-call     first tree
-(ast-is-function tree) equal ast-of-function first tree
-(ast-is-number tree)   equal ast-of-number   first tree
-(ast-is-extern tree)   equal ast-of-extern   first tree
-(ast-is-lambda tree)   equal ast-of-lambda   first tree
-(ast-is-str tree)      equal ast-of-str      first tree
+(ast-is-name tree)     equal ast-of-name     car tree
+(ast-is-call tree)     equal ast-of-call     car tree
+(ast-is-function tree) equal ast-of-function car tree
+(ast-is-number tree)   equal ast-of-number   car tree
+(ast-is-extern tree)   equal ast-of-extern   car tree
+(ast-is-lambda tree)   equal ast-of-lambda   car tree
+(ast-is-str tree)      equal ast-of-str      car tree
 
 (binding-to-ast bind)
 if  binding-is-value bind
     ast-name get-binding-value bind
 if  binding-is-lambda bind
-    ast-call pair
+    ast-call cons
         ast-name get-binding-value bind
         map tree get-binding-args bind
             # binding-to-ast tree #
@@ -447,11 +480,11 @@ parse-value strip str '(
             let generics
                 fold generics arg
                      0        value
-                    pair binding-generic arg generics
+                    cons binding-generic arg generics
             let names
                 fold names name
                      names value
-                    pair name names
+                    cons name names
             parse-zero-or-more str
                 parse-args-from str names
                     then value str
@@ -479,8 +512,8 @@ parse-args-from str 0
 (parse-generic-args str tab generics (then str tab) (error info))
 if  generics
     parse-args str
-        let tab binding-table-append-generic tab binding-lambda first generics pair value 0 0
-        parse-generic-args str tab second generics
+        let tab binding-table-append-generic tab binding-lambda car generics cons value 0 0
+        parse-generic-args str tab cdr generics
             then str tab
             error info
         error info
@@ -499,36 +532,36 @@ if  binding-is-lambda binding
     parse-generic-args str tab get-binding-generics binding
         parse-call str tab get-binding-args binding
             parse-expr str tab then value str tab error info
-            then ast-call pair ast-name v1 value str tab
+            then ast-call cons ast-name v1 value str tab
             error info
         error info
     error error-from-position state-pos str "binding can not be understood"
 
 (parse-call str tab bindings (parse-expr str tab (then value str tab) (error info)) (then value str tab) (error info))
 if  bindings
-    let binding first bindings
+    let binding car bindings
     if  binding-is-generic binding
         let generic-binding-all binding-table-lookup-generic tab get-binding-value binding
         if  generic-binding-all
-            let generic-value first get-binding-args generic-binding-all
+            let generic-value car get-binding-args generic-binding-all
             let tab binding-table-append tab generic-value
-            parse-call str tab pair generic-value second bindings
+            parse-call str tab cons generic-value cdr bindings
                 parse-expr str tab then value str tab error info
                 then value str tab
                 error info
             parse-expr str tab
                 let v1 value
-                parse-call str tab second bindings
+                parse-call str tab cdr bindings
                     parse-expr str tab then value str tab error info
-                    then pair v1 value str tab
+                    then cons v1 value str tab
                     error info
                 error info
     if  binding-is-value binding
         parse-expr str tab
             let v1 value
-            parse-call str tab second bindings
+            parse-call str tab cdr bindings
                 parse-expr str tab then value str tab error info
-                then pair v1 value str tab
+                then cons v1 value str tab
                 error info
             error info
     if  binding-is-lambda binding
@@ -541,12 +574,12 @@ if  bindings
                     map arg get-binding-args binding
                         ast-name if binding-is-generic arg
                             let gen binding-table-lookup-generic tab get-binding-value arg
-                                get-binding-value first get-binding-args gen
+                                get-binding-value car get-binding-args gen
                             get-binding-value arg
                     value
-            parse-call str tab second bindings
+            parse-call str tab cdr bindings
                 parse-expr str tab then value str tab error info
-                then pair v1 value str tab
+                then cons v1 value str tab
                 error info
             error info
         error error-from-position state-pos str "binding could not be understood"
@@ -610,19 +643,19 @@ if  not state-has-data strip str
     then 0 str tab
     parse-toplevel-single str tab
         parse-toplevel str tab
-            then pair value values str tab
+            then cons value values str tab
             error info
         error info
 
 
 (defs-append defs name value)
-pair pair name value defs
+cons cons name value defs
 
 (defs-lookup defs name)
 and defs
-if  str-eq name first first defs
-    second first defs
-    defs-lookup second defs name
+if  str-eq name car car defs
+    cdr car defs
+    defs-lookup cdr defs name
 
 (ir-form-type-error) 0
 (ir-form-type-let) 1
@@ -652,22 +685,22 @@ if equal type ir-form-type-let-string "let-string"
 if equal type ir-form-type-let-closure-global "let-closure-global"
     "unknown"
 
-(ir-of-form type args) pair 0 pair type args
-(ir-is-form ir) equal 0 first ir
-(ir-form-type ir) first second ir
-(ir-form-args ir) second second ir
+(ir-of-form type args) cons 0 cons type args
+(ir-is-form ir) equal 0 car ir
+(ir-form-type ir) car cdr ir
+(ir-form-args ir) cdr cdr ir
 
-(ir-of-ident ident) pair 1 ident
-(ir-is-ident ir) equal 1 first ir
-(ir-ident-text ir) second ir
+(ir-of-ident ident) cons 1 ident
+(ir-is-ident ir) equal 1 car ir
+(ir-ident-text ir) cdr ir
 
-(ir-of-number number) pair 2 number
-(ir-is-number ir) equal 2 first ir
-(ir-number-value ir) second ir
+(ir-of-number number) cons 2 number
+(ir-is-number ir) equal 2 car ir
+(ir-number-value ir) cdr ir
 
-(ir-of-string string) pair 3 string
-(ir-is-string ir) equal 3 first ir
-(ir-string-value ir) second ir
+(ir-of-string string) cons 3 string
+(ir-is-string ir) equal 3 car ir
+(ir-string-value ir) cdr ir
 
 (ir-of-form-block args)
 ir-of-form ir-form-type-block
@@ -676,7 +709,7 @@ ir-of-form ir-form-type-block
         concat
             if  and ir-is-form el equal ir-form-type-block ir-form-type el
                 ir-form-args el
-                pair el 0
+                cons el 0
             e
 
 (ir-print-spaces n)
@@ -710,12 +743,43 @@ put-str "<unk>"
 (ir-print ir)
 ir-print-depth ir 0
 
+(scan-ast-captures tree defs)
+if  ast-is-name tree
+    let found defs-lookup defs cdr tree
+    and found
+    and equal 1 car found
+        cons cdr tree
+            0
+if  ast-is-call tree
+    flatten
+        let r map arg cdr tree
+            scan-ast-captures arg defs
+            r
+if  ast-is-lambda tree
+    let defs cdr
+        fold duo      def
+            cons 0 0  defs
+            cons add 1 car duo
+                 defs-append cdr duo car def cons 1 car duo
+    let defs cdr
+        fold duo         arg
+             cons 0 defs car cdr tree
+            cons add 1 car duo
+                 defs-append cdr duo cdr arg cons 0 cdr arg
+        scan-ast-captures cdr cdr tree defs
+    0
+
+(defs-filter-keep-used tree defs defs-init)
+let used scan-ast-captures tree defs
+    filter def defs-init
+        has-str used car def
+
 (compile-ir-pre tree (get-path) defs (compile-ir tree (get-path) defs))
 if  ast-is-call tree
-    reverse second fold state el
-            pair 0 0 reverse second second tree
-        let n first state
-        pair add 1 n
+    reverse cdr fold state el
+            cons 0 0 reverse cdr cdr tree
+        let n car state
+        cons add 1 n
             concat
                 let path
                     concat get-path
@@ -726,36 +790,36 @@ if  ast-is-call tree
                     path
                     defs
                     compile-ir tree get-path defs
-                second state
+                cdr state
 if  ast-is-lambda tree
     let path concat get-path "_lam"
-    let defs second
+    let defs cdr
         fold duo      def
-            pair 0 0  defs
-            pair add 1 first duo
-                 defs-append second duo first def pair 1 first duo
-    let defs second
+            cons 0 0  defs
+            cons add 1 car duo
+                 defs-append cdr duo car def cons 1 car duo
+    let defs cdr
         fold duo         arg
-             pair 0 defs first second tree
-            pair add 1 first duo
-                 defs-append second duo second arg pair 0 second arg
+             cons 0 defs car cdr tree
+            cons add 1 car duo
+                 defs-append cdr duo cdr arg cons 0 cdr arg
     concat
         compile-ir-pre
-            second second tree
+            cdr cdr tree
             path
             defs
             compile-ir tree get-path defs
-        pair
+        cons
             ir-of-form ir-form-type-function
-                pair ir-of-ident path
-                pair ir-of-form ir-form-type-params
-                    pair ir-of-ident "closure"
-                    map arg first second tree
-                        ir-of-ident second arg
-                pair ir-of-form-block
-                    pair compile-ir second second tree path defs
-                    pair ir-of-form ir-form-type-return
-                        pair ir-of-ident path
+                cons ir-of-ident path
+                cons ir-of-form ir-form-type-params
+                    cons ir-of-ident "closure"
+                    map arg car cdr tree
+                        ir-of-ident cdr arg
+                cons ir-of-form-block
+                    cons compile-ir cdr cdr tree path defs
+                    cons ir-of-form ir-form-type-return
+                        cons ir-of-ident path
                             0
                         0
                     0
@@ -764,135 +828,135 @@ if  ast-is-lambda tree
 
 (compile-ir tree (get-path) defs)
 if  ast-is-name tree
-    let found defs-lookup defs second tree
+    let found defs-lookup defs cdr tree
     ir-of-form ir-form-type-let
-        pair ir-of-ident get-path
-        pair if and found equal 1 first found
+        cons ir-of-ident get-path
+        cons if and found equal 1 car found
             ir-of-form ir-form-type-closure-get
-                pair ir-of-ident "closure"
-                pair ir-of-number add 1 second found
+                cons ir-of-ident "closure"
+                cons ir-of-number add 1 cdr found
                     0
-            ir-of-ident second tree
+            ir-of-ident cdr tree
             0
 if  ast-is-call tree
     ir-of-form-block
         let lambda-path concat get-path "_clo"
         let func-path concat get-path "_fun"
-        let found defs-lookup defs second first second tree
-        let func-pair
-            #if and found equal 1 first found#
-            pair ir-of-form ir-form-type-closure-get
-                    pair ir-of-ident lambda-path
-                    pair ir-of-number 0
+        let found defs-lookup defs cdr car cdr tree
+        let func-cons
+            #if and found equal 1 car found#
+            cons ir-of-form ir-form-type-closure-get
+                    cons ir-of-ident lambda-path
+                    cons ir-of-number 0
                         0
                 ir-of-ident lambda-path
-        pair compile-ir first second tree lambda-path defs
-        pair ir-of-form ir-form-type-let
-            pair ir-of-ident func-path
-            pair first func-pair
+        cons compile-ir car cdr tree lambda-path defs
+        cons ir-of-form ir-form-type-let
+            cons ir-of-ident func-path
+            cons car func-cons
                 0
-        pair ir-of-form-block
-            reverse second fold state el
-                        pair 0 0 reverse second second tree
-                    let n first state
+        cons ir-of-form-block
+            reverse cdr fold state el
+                        cons 0 0 reverse cdr cdr tree
+                    let n car state
                     let path
                         concat get-path
                         concat "_"
                             num-to-str n
                     let arg compile-ir el path defs
-                    pair add 1 n pair arg second state
-        pair ir-of-form ir-form-type-let
-            pair ir-of-ident get-path
-            pair ir-of-form ir-form-type-call
-                pair ir-of-ident func-path
-                reverse pair second func-pair
-                    reverse second fold state el
-                        pair 0 0 second second tree
-                        let n first state
-                        pair add 1 n
-                        pair ir-of-ident
+                    cons add 1 n cons arg cdr state
+        cons ir-of-form ir-form-type-let
+            cons ir-of-ident get-path
+            cons ir-of-form ir-form-type-call
+                cons ir-of-ident func-path
+                reverse cons cdr func-cons
+                    reverse cdr fold state el
+                        cons 0 0 cdr cdr tree
+                        let n car state
+                        cons add 1 n
+                        cons ir-of-ident
                                 concat get-path
                                 concat "_"
                                     num-to-str n
-                            second state
+                            cdr state
                 0
             0
 if  ast-is-function tree
     let path concat
-        second first second first second tree
+        cdr car cdr car cdr tree
         "_ret"
     let defs
         fold xdefs arg
-             0     second second first second tree
-            defs-append xdefs second arg pair 0 second arg
+             0     cdr cdr car cdr tree
+            defs-append xdefs cdr arg cons 0 cdr arg
     let pre
         compile-ir-pre
-            second second tree
+            cdr cdr tree
             path
             defs
             compile-ir tree get-path defs
     let base ir-of-form ir-form-type-function
-        pair ir-of-ident path
-        pair ir-of-form ir-form-type-params
-            pair ir-of-ident "closure"
-            map arg second second first second tree
-                ir-of-ident second arg
-        pair ir-of-form-block
-            pair compile-ir second second tree path defs
-            pair ir-of-form ir-form-type-return
-                pair ir-of-ident path
+        cons ir-of-ident path
+        cons ir-of-form ir-form-type-params
+            cons ir-of-ident "closure"
+            map arg cdr cdr car cdr tree
+                ir-of-ident cdr arg
+        cons ir-of-form-block
+            cons compile-ir cdr cdr tree path defs
+            cons ir-of-form ir-form-type-return
+                cons ir-of-ident path
                     0
                 0
             0
-        pair
-            ir-of-form ir-form-type-let-closure
-                pair ir-of-ident second first second first second tree
-                pair ir-of-ident path
+        cons
+            ir-of-form ir-form-type-let-closure-global
+                cons ir-of-ident cdr car cdr car cdr tree
+                cons ir-of-ident path
                     0
             concat
                 pre
-                pair base 0
+                cons base 0
 if  ast-is-number tree
     ir-of-form ir-form-type-let
-        pair ir-of-ident get-path
-        pair ir-of-number second tree
+        cons ir-of-ident get-path
+        cons ir-of-number cdr tree
             0
 if  ast-is-extern tree
-    pair ir-of-form ir-form-type-extern
-        pair ir-of-ident second first second second tree
-        pair ir-of-form ir-form-type-params
-            map arg second second second tree
-                ir-of-ident second arg
+    cons ir-of-form ir-form-type-extern
+        cons ir-of-ident cdr car cdr cdr tree
+        cons ir-of-form ir-form-type-params
+            map arg cdr cdr cdr tree
+                ir-of-ident cdr arg
             0
         0
 if  ast-is-lambda tree
     let defs-init defs
     let path concat get-path "_lam"
-    let defs second
+    let defs cdr
         fold duo      def
-            pair 0 0  defs
-            pair add 1 first duo
-                 defs-append second duo first def pair 1 first duo
-    let defs second
+            cons 0 0  defs
+            cons add 1 car duo
+                 defs-append cdr duo car def cons 1 car duo
+    let defs cdr
         fold duo         arg
-             pair 0 defs first second tree
-            pair add 1 first duo
-                 defs-append second duo second arg pair 0 second arg
+             cons 0 defs car cdr tree
+            cons add 1 car duo
+                 defs-append cdr duo cdr arg cons 0 cdr arg
     ir-of-form ir-form-type-let-closure
-        pair ir-of-ident get-path
-        pair ir-of-ident path
-            map def reverse defs-init
-                let found second def
-                if equal 1 first found
+        cons ir-of-ident get-path
+        cons ir-of-ident path
+            map def reverse defs-filter-keep-used cdr cdr tree defs defs-init
+                let found cdr def
+                if equal 1 car found
                     ir-of-form ir-form-type-closure-get
-                        pair ir-of-ident "closure"
-                        pair ir-of-number add 1 second found
+                        cons ir-of-ident "closure"
+                        cons ir-of-number add 1 cdr found
                             0
-                    ir-of-ident second found
+                    ir-of-ident cdr found
 if  ast-is-str tree
     ir-of-form ir-form-type-let-string
-        pair ir-of-ident get-path
-        pair ir-of-string second tree
+        cons ir-of-ident get-path
+        cons ir-of-string cdr tree
             0
 ir-of-ident "<TODO: else>"
 
@@ -904,7 +968,7 @@ parse-toplevel str-to-state str binding-table
     put-error info
 
 (endline)
-pair 10 0
+cons 10 0
 
 (put-ir-c ir)
 if  ir-is-form ir
@@ -912,16 +976,16 @@ if  ir-is-form ir
     let args ir-form-args ir
     if  equal type ir-form-type-let
         do  put-str "  size_t "
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str " = (size_t) ("
-        do  put-ir-c first second args
+        do  put-ir-c car cdr args
         do  put-str ");"
         do  put-line
             0
     if  equal type ir-form-type-block
         do  put-str "{"
         do  put-line
-        do  put-str "  EB_DEBUG();"
+        do  put-str "  EB_ENTER();"
         do  put-line
         do  for arg args
             put-ir-c arg
@@ -931,15 +995,15 @@ if  ir-is-form ir
     if  equal type ir-form-type-call
         do  put-str "((size_t (*)("
         do  fold n arg
-                 0 second args
+                 0 cdr args
                 do  and n put-str ", "
                 do  put-str "size_t"
                     add 1 n
         do  put-str "))"
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str ")("
         do  fold n arg
-                 0 second args
+                 0 cdr args
                 do  and n put-str ", "
                 do  put-str "(size_t) ("
                 do  put-ir-c arg
@@ -949,9 +1013,9 @@ if  ir-is-form ir
             0
     if  equal type ir-form-type-function
         do  put-str "size_t "
-        do  put-ir-c first args
-        do  put-ir-c first second args
-        do  put-ir-c first second second args
+        do  put-ir-c car args
+        do  put-ir-c car cdr args
+        do  put-ir-c car cdr cdr args
             endline
     if  equal type ir-form-type-params
         do  put-str "("
@@ -965,10 +1029,10 @@ if  ir-is-form ir
             0
     if  equal type ir-form-type-let-closure-global
         do  put-str "size_t "
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str "[] = {"
         do  put-line
-        do  for arg second args
+        do  for arg cdr args
                 do  put-str "  (size_t) ("
                 do  put-ir-c arg
                 do  put-str "),"
@@ -979,10 +1043,10 @@ if  ir-is-form ir
             0
     if  equal type ir-form-type-let-closure
         do  put-str "  size_t "
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str "[] = {"
         do  put-line
-        do  for arg second args
+        do  for arg cdr args
                 do  put-str "    (size_t) ("
                 do  put-ir-c arg
                 do  put-str "),"
@@ -994,27 +1058,29 @@ if  ir-is-form ir
     if  equal type ir-form-type-extern
         0
     if  equal type ir-form-type-return
+        do  put-str "  EB_EXIT();"
+        do  put-line
         do  put-str "  return "
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str ";"
         do  put-line
             0
     if  equal type ir-form-type-closure-get
         do  put-str "((size_t *)"
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str ")["
-        do  put-ir-c first second args
+        do  put-ir-c car cdr args
         do  put-str "]"
             0
     if  equal type ir-form-type-let-string
         do  put-str "  static size_t "
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str " = 0;"
         do  put-line
         do  put-str "  ebz_stol(&"
-        do  put-ir-c first args
+        do  put-ir-c car args
         do  put-str ", "
-        do  put-ir-c first second args
+        do  put-ir-c car cdr args
         do  put-str ");"
         do  put-line
             0
@@ -1028,9 +1094,9 @@ if  ir-is-ident ir
 if  ir-is-number ir
     put-num ir-number-value ir
 if  ir-is-string ir
-    do  put-str pair '" 0
+    do  put-str cons '" 0
     do  put-str ir-string-value ir
-    do  put-str pair '" 0
+    do  put-str cons '" 0
         0
     0
 
@@ -1039,8 +1105,8 @@ if  and ir-is-form ir
     equal ir-form-type ir ir-form-type-function
     let args ir-form-args ir
     do  put-str "size_t "
-    do  put-ir-c first args
-    do  put-ir-c first second args
+    do  put-ir-c car args
+    do  put-ir-c car cdr args
     do  put-str ";"
     do  put-line
         0
@@ -1058,7 +1124,7 @@ if  str-eq lang "c"
         do  put-line
         for node values
             let ir compile-ir node 0 0
-            do  put-ir-c-decl first reverse ir
+            do  put-ir-c-decl car reverse ir
             for el ir
                 put-ir-c el
         put-error info
@@ -1072,9 +1138,9 @@ do  put-str lang
 main-lang lang read-file file
 
 (comp args file lang)
-if  and args str-eq "--target" first args
-    comp second second args file first second args
-    comp-final first args lang
+if  and args str-eq "--target" car args
+    comp cdr cdr args file car cdr args
+    comp-final car args lang
 
 (main args)
 comp args 0 "c"

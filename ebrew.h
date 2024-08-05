@@ -2,37 +2,51 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#if 0
-#define EB_DEBUG() printf("%s\n", __FUNCTION__)
+#if EB_DEBUG
+#define EB_ENTER() ebz_enter(__FUNCTION__)
+#define EB_EXIT() ebz_exit(__FUNCTION__)
+
+size_t ebz_cur_depth = 0;
+size_t ebz_max_depth = 0;
+
+static inline void ebz_enter(const char *name) {
+    ebz_cur_depth += 1;
+    if (ebz_cur_depth > ebz_max_depth) {
+        ebz_max_depth = ebz_cur_depth;
+    }
+}
+
+static inline void ebz_exit(const char *name) {
+    ebz_cur_depth -= 1;
+}
 #else
-#define EB_DEBUG()( (void) 0)
+#define EB_ENTER() ((void) 0)
+#define EB_EXIT() ((void) 0)
 #endif
 
-static uint8_t ebz_alloc_mem[1 << 24];
-static size_t ebz_alloc_total = 0;
-static inline void *ebz_alloc_bytes(size_t size) {
-    size_t head = ebz_alloc_total;
-    ebz_alloc_total += size;
-    return &ebz_alloc_mem[head];
-}
-static inline size_t *ebz_alloc(size_t n) {
-    return ebz_alloc_bytes(sizeof(size_t) * n);
+struct ebz_pair_t;
+typedef struct ebz_pair_t ebz_pair_t;
+struct ebz_pair_t {
+  uint32_t first;
+  uint32_t second;
+};
+static ebz_pair_t ebz_alloc_mem[1 << 20];
+static size_t ebz_alloc_total = 1;
+static inline size_t ebz_pair(size_t a, size_t b) {
+    size_t ret = ebz_alloc_total++;
+    ebz_alloc_mem[ret].first = a;
+    ebz_alloc_mem[ret].second = b;
+    return ret;
 }
 static inline size_t ebz_putchar(size_t c) {
     putchar((int)c);
     return 0;
 }
-static inline size_t ebz_pair(size_t a, size_t b) {
-    size_t *pair = ebz_alloc(2);
-    pair[0] = a;
-    pair[1] = b;
-    return (size_t) pair;
-}
 static inline size_t ebz_first(size_t p) {
-    return ((size_t *)p)[0];
+  return ebz_alloc_mem[p].first;
 }
 static inline size_t ebz_second(size_t p) {
-    return ((size_t *)p)[1];
+  return ebz_alloc_mem[p].second;
 }
 static inline size_t ebz_if(size_t c, size_t t, size_t e) {
     if (c != 0) {
@@ -48,23 +62,23 @@ static size_t eb_putchar[] = {
 static inline size_t eb_putchar_ret(size_t a1, size_t a2) {
     return ebz_putchar(a2);
 }
-static inline size_t eb_pair_ret(size_t a1, size_t a2, size_t a3);
-static size_t eb_pair[] = {
-  (size_t) eb_pair_ret,
+static inline size_t eb_cons_ret(size_t a1, size_t a2, size_t a3);
+static size_t eb_cons[] = {
+  (size_t) eb_cons_ret,
 };
-static inline size_t eb_pair_ret(size_t a1, size_t a2, size_t a3) {
+static inline size_t eb_cons_ret(size_t a1, size_t a2, size_t a3) {
     return ebz_pair(a2, a3);
 }
-static inline size_t eb_first_ret(size_t a1, size_t a2);
-static size_t eb_first[] = {
-  (size_t) eb_first_ret,
+static inline size_t eb_car_ret(size_t a1, size_t a2);
+static size_t eb_car[] = {
+  (size_t) eb_car_ret,
 };
-static inline size_t eb_first_ret(size_t a1, size_t a2) { return ebz_first(a2); }
-static inline size_t eb_second_ret(size_t a1, size_t a2);
-static size_t eb_second[] = {
-  (size_t) eb_second_ret,
+static inline size_t eb_car_ret(size_t a1, size_t a2) { return ebz_first(a2); }
+static inline size_t eb_cdr_ret(size_t a1, size_t a2);
+static size_t eb_cdr[] = {
+  (size_t) eb_cdr_ret,
 };
-static inline size_t eb_second_ret(size_t a1, size_t a2) { return ebz_second(a2); }
+static inline size_t eb_cdr_ret(size_t a1, size_t a2) { return ebz_second(a2); }
 static inline size_t eb_if_ret(size_t a1, size_t a2, size_t a3, size_t a4);
 static size_t eb_if[] = {
   (size_t) eb_if_ret,
@@ -138,6 +152,9 @@ static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f) {
     }
     *s++ = 0;
     FILE *k = fopen(name, "r");
+    if (k == NULL) {
+      return 0;
+    }
     static char i[1 << 20];
     char *m = i;
     while (!feof(k)) {
@@ -153,7 +170,7 @@ static inline size_t eb_read_DASH_file_ret(size_t a1, size_t f) {
     ebz_stol(&r, i);
     return r;
 }
-size_t eb_main[];
+extern size_t eb_main[];
 int main(int argc, char **argv) {
     size_t a = 0;
     while (argc > 1) {
@@ -163,5 +180,9 @@ int main(int argc, char **argv) {
         a = ebz_pair(next, a);
     }
     int got = ((size_t (*)(size_t, size_t)) eb_main[0])((size_t) eb_main, a);
+#if EB_DEBUG
+    fprintf(stderr, "// %zu pairs\n", ebz_alloc_total);
+    fprintf(stderr, "// %zu depth\n", ebz_max_depth);
+#endif
     return got;
 }

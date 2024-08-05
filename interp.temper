@@ -101,13 +101,13 @@ export class Env {
           k(number(0));
         }
       };
-      "pair" -> fn(args: Listed<Value>, k: Cont): Void {
+      "cons" -> fn(args: Listed<Value>, k: Cont): Void {
         k(cons(args[0], args[1]));
       };
-      "first" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "car" ->  fn(args: Listed<Value>, k: Cont): Void {
         k(args[0].asCons().first);
       };
-      "second" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "cdr" ->  fn(args: Listed<Value>, k: Cont): Void {
         k(args[0].asCons().second);
       };
       "add" ->  fn(args: Listed<Value>, k: Cont): Void {

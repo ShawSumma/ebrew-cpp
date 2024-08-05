@@ -1,7 +1,7 @@
 
 (putchar c) ?
-(first p) ?
-(second p) ?
+(car p) ?
+(cdr p) ?
 (if c (t) (f)) ?
 
 (and x (y)) if x y 0
@@ -10,8 +10,8 @@
 
 (puts s)
 and s
-do  putchar first s
-    puts second s
+do  putchar car s
+    puts cdr s
 
 (main args)
 puts "hello, world!"
