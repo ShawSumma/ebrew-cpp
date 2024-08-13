@@ -1,0 +1,72 @@
+
+# builtin #
+
+(if c (t) (f)) ?
+
+(cons a b) ?
+(car p) ?
+(cdr p) ?
+
+(putchar char) ?
+
+(equal y x) ?
+(above y x) ?
+
+(add y x) ?
+(sub y x) ?
+(mul y x) ?
+(div y x) ?
+(mod y x) ?
+
+# common #
+
+(or x (y))
+if x x y
+
+(and x (y))
+if x y 0
+
+(not x)
+if x 0 1
+
+(do x y)
+y
+
+# io #
+
+(number-nonzero n)
+and above n 0
+do  number-nonzero div 10 n
+    putchar add '0 mod 10 n
+
+(number n)
+if  n
+    number-nonzero n
+    putchar '0
+
+(newline)
+putchar 10
+
+# our code #
+
+(map [name] list (in name))
+and list
+cons in car list
+     map name cdr list in name
+
+(num-cata [x] (base) (succ x) n)
+if  n
+    succ num-cata x base succ x sub 1 n
+    base
+
+(str-cata [s l] (func s l) str)
+if  str
+    func str str-cata s func s cdr str
+    func str 0
+
+(main args)
+# do  number num-cata n 1 mul 2 n 10 #
+do  number str-cata s l
+        and s add 1 l
+        "hello world"
+    newline

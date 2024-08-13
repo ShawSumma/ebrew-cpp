@@ -4,7 +4,7 @@ set -ex
 
 test -d temper.out || temper build -b js
 
-export PYTHONPATH=temper.out/py/*
+npm i temper.out/js/temper-core
 node driver/comp.mjs c eb/eb.eb > ebrew.c
 
 clang ebrew.c -Oz -flto -o ebrew.out -Wl,-stack_size -Wl,10000000 -I.

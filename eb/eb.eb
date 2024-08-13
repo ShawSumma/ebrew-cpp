@@ -668,7 +668,6 @@ if  str-eq name car car defs
 (ir-form-type-return) 8
 (ir-form-type-closure-get) 9
 (ir-form-type-let-string) 10
-(ir-form-type-let-closure-global) 11
 
 (ir-form-type-to-str type)
 if equal type ir-form-type-error "error"
@@ -682,7 +681,6 @@ if equal type ir-form-type-extern "extern"
 if equal type ir-form-type-return "return"
 if equal type ir-form-type-closure-get "closure-get"
 if equal type ir-form-type-let-string "let-string"
-if equal type ir-form-type-let-closure-global "let-closure-global"
     "unknown"
 
 (ir-of-form type args) cons 0 cons type args
@@ -839,21 +837,24 @@ if  ast-is-name tree
             0
 if  ast-is-call tree
     ir-of-form-block
-        let lambda-path concat get-path "_clo"
-        let func-path concat get-path "_fun"
         let found defs-lookup defs cdr car cdr tree
+        let lambda-path concat get-path "_clo"
         let func-cons
-            #if and found equal 1 car found#
-            cons ir-of-form ir-form-type-closure-get
-                    cons ir-of-ident lambda-path
-                    cons ir-of-number 0
-                        0
-                ir-of-ident lambda-path
-        cons compile-ir car cdr tree lambda-path defs
-        cons ir-of-form ir-form-type-let
-            cons ir-of-ident func-path
-            cons car func-cons
+            if found
+                cons ir-of-form ir-form-type-closure-get
+                        cons ir-of-ident lambda-path
+                        cons ir-of-number 0
+                            0
+                    ir-of-ident lambda-path
+                cons ir-of-ident lambda-path
+                    ir-of-ident cdr car cdr tree
+        concat if found
+            cons compile-ir car cdr tree lambda-path defs
                 0
+            0
+        let func if found
+            car func-cons
+            ir-of-ident cdr car cdr tree
         cons ir-of-form-block
             reverse cdr fold state el
                         cons 0 0 reverse cdr cdr tree
@@ -867,23 +868,20 @@ if  ast-is-call tree
         cons ir-of-form ir-form-type-let
             cons ir-of-ident get-path
             cons ir-of-form ir-form-type-call
-                cons ir-of-ident func-path
-                reverse cons cdr func-cons
-                    reverse cdr fold state el
-                        cons 0 0 cdr cdr tree
-                        let n car state
-                        cons add 1 n
-                        cons ir-of-ident
-                                concat get-path
-                                concat "_"
-                                    num-to-str n
-                            cdr state
+                cons func
+                cdr fold state el
+                    cons 0 cons cdr func-cons 0 cdr cdr tree
+                    let n car state
+                    cons add 1 n
+                    cons ir-of-ident
+                            concat get-path
+                            concat "_"
+                                num-to-str n
+                        cdr state
                 0
             0
 if  ast-is-function tree
-    let path concat
-        cdr car cdr car cdr tree
-        "_ret"
+    let path cdr car cdr car cdr tree
     let defs
         fold xdefs arg
              0     cdr cdr car cdr tree
@@ -907,14 +905,7 @@ if  ast-is-function tree
                     0
                 0
             0
-        cons
-            ir-of-form ir-form-type-let-closure-global
-                cons ir-of-ident cdr car cdr car cdr tree
-                cons ir-of-ident path
-                    0
-            concat
-                pre
-                cons base 0
+        concat pre cons base 0
 if  ast-is-number tree
     ir-of-form ir-form-type-let
         cons ir-of-ident get-path
@@ -1027,22 +1018,6 @@ if  ir-is-form ir
                 do  put-ir-c arg
                     add 1 n
         do  put-str ")"
-            0
-    if  equal type ir-form-type-let-closure-global
-        do  put-str "size_t "
-        do  put-ir-c car args
-        do  put-str "["
-        do  put-num length cdr args 
-        do  put-str "] = {"
-        do  put-line
-        do  for arg cdr args
-                do  put-str "  (size_t) ("
-                do  put-ir-c arg
-                do  put-str "),"
-                do  put-line
-                    0
-        do  put-str "};"
-        do  put-line
             0
     if  equal type ir-form-type-let-closure
         do  put-str "  size_t "

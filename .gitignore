@@ -3,6 +3,7 @@
 *.exe
 *.o
 *.out
+*.c
 .DS_Store
 .mypy_cache
 .vscode
