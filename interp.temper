@@ -62,7 +62,7 @@ export class Env {
   }
 
   public compForm(form: Form): Runner {
-    match (form.form) {
+    when (form.form) {
       "call" -> compCall(form);
       "lambda" -> compLambda(form);
       else -> compErr();
@@ -70,7 +70,7 @@ export class Env {
   }
 
   public compTree(tree: Tree): Runner {
-    match (tree) {
+    when (tree) {
       is Form -> compForm(tree);
       is Ident -> new LookupRunner(tree.repr);
       is Number -> new ValueRunner(number(tree.repr));
@@ -92,7 +92,7 @@ export class Env {
 
   public compExternName(name: String): Define {
     var self = this;
-    match (name) {
+    when (name) {
       "equal" -> fn(args: Listed<Value>, k: Cont): Void {
         if (args[0].asInt() == args[1].asInt()) {
           k(number(1));
@@ -176,7 +176,7 @@ export class Env {
   }
 
   public compTopForm(form: Form): Void {
-    match (form.form) {
+    when (form.form) {
       "extern" -> compExtern(form);
       "func" -> compFunc(form);
       else -> compErr();
