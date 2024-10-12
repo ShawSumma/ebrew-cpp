@@ -113,10 +113,10 @@ class Binding {
 
 let parseInt(s: String): Int {
   var ret = 0;
-  var code = String.start;
-  while (s.codeAt(code) != 0) {
+  var code = String.begin;
+  while (s.hasIndex(code)) {
     ret *= 10;
-    ret += s.codeAt(code) - 48;
+    ret += s[code] - 48;
     code = s.next(code);
   }
   return ret;
@@ -127,7 +127,7 @@ let isSpaceChar(s: String): Boolean {
 }
 
 let charInRange(s: String, low: Int, high: Int): Boolean {
-  var mid = s.codeAt(String.start);
+  var mid = s[String.begin] orelse 0;
   return low <= mid && mid <= high;
 }
 
@@ -314,7 +314,7 @@ export class Parser {
       if (state.first() == "\'") {
         state.skip();
       }
-      return new Number(c.codeAt(String.start));
+      return new Number(c[String.begin]);
     }
     if (state.first() == "\"") {
       state.skip();
@@ -330,7 +330,7 @@ export class Parser {
       err('expected expression');
     }
     var res: Tree = new Ident("?");
-    var split = String.fromCodePoint(name.codeAt(String.start));
+    var split = String.fromCodePoint(name[String.begin]);
     if (charInRange(split, char'0', char'9')) {
         res = new Number(parseInt(name));
     } else {

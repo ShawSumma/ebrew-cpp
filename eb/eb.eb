@@ -18,6 +18,8 @@
 (div y x) ?
 (mod y x) ?
 
+(read-file name) ?
+
 # common #
 
 (or x (y))
@@ -86,7 +88,7 @@ for k s putchar k
 putchar add '0 mod 10 n
 
 (put-num-nonzero n)
-and above n 0
+or  equal 0 n
 do  put-num-nonzero div 10 n
     put-digit n
 
@@ -160,7 +162,7 @@ fold x el
 # converters #
 
 (num-to-str-nonzero n)
-and above n 0
+or  equal 0 n
 concat
     num-to-str-nonzero div 10 n
     cons add '0 mod 10 n 0
@@ -769,6 +771,9 @@ let used scan-ast-captures tree defs
     filter def defs-init
         has-str used car def
 
+(path-to-ident path)
+ir-of-ident reverse path
+
 (compile-ir-pre tree (get-path) defs (compile-ir tree (get-path) defs))
 if  ast-is-call tree
     reverse cdr fold state el
@@ -776,10 +781,7 @@ if  ast-is-call tree
         let n car state
         cons add 1 n
             concat
-                let path
-                    concat get-path
-                    concat "_"
-                        num-to-str n
+                let path cons add '0 n get-path
                 reverse compile-ir-pre
                     el
                     path
@@ -787,7 +789,7 @@ if  ast-is-call tree
                     compile-ir tree get-path defs
                 cdr state
 if  ast-is-lambda tree
-    let path concat get-path "_lam"
+    let path cons 'f get-path
     let defs
         defs-filter-keep-used cdr cdr tree defs defs
     let defs cdr
@@ -808,7 +810,7 @@ if  ast-is-lambda tree
             compile-ir tree get-path defs
         cons
             ir-of-form ir-form-type-function
-                cons ir-of-ident path
+                cons path-to-ident path
                 cons ir-of-form ir-form-type-params
                     cons ir-of-ident "closure"
                     map arg car cdr tree
@@ -816,7 +818,7 @@ if  ast-is-lambda tree
                 cons ir-of-form-block
                     cons compile-ir cdr cdr tree path defs
                     cons ir-of-form ir-form-type-return
-                        cons ir-of-ident path
+                        cons path-to-ident path
                             0
                         0
                     0
@@ -827,7 +829,7 @@ if  ast-is-lambda tree
 if  ast-is-name tree
     let found defs-lookup defs cdr tree
     ir-of-form ir-form-type-let
-        cons ir-of-ident get-path
+        cons path-to-ident get-path
         cons if and found equal 1 car found
             ir-of-form ir-form-type-closure-get
                 cons ir-of-ident "closure"
@@ -838,15 +840,15 @@ if  ast-is-name tree
 if  ast-is-call tree
     ir-of-form-block
         let found defs-lookup defs cdr car cdr tree
-        let lambda-path concat get-path "_clo"
+        let lambda-path cons 'c get-path
         let func-cons
             if found
                 cons ir-of-form ir-form-type-closure-get
-                        cons ir-of-ident lambda-path
+                        cons path-to-ident lambda-path
                         cons ir-of-number 0
                             0
-                    ir-of-ident lambda-path
-                cons ir-of-ident lambda-path
+                    path-to-ident lambda-path
+                cons path-to-ident lambda-path
                     ir-of-ident cdr car cdr tree
         concat if found
             cons compile-ir car cdr tree lambda-path defs
@@ -860,28 +862,24 @@ if  ast-is-call tree
                         cons 0 0 reverse cdr cdr tree
                     let n car state
                     let path
-                        concat get-path
-                        concat "_"
-                            num-to-str n
+                        cons add '0 n get-path
                     let arg compile-ir el path defs
                     cons add 1 n cons arg cdr state
         cons ir-of-form ir-form-type-let
-            cons ir-of-ident get-path
+            cons path-to-ident get-path
             cons ir-of-form ir-form-type-call
                 cons func
                 cdr fold state el
                     cons 0 cons cdr func-cons 0 cdr cdr tree
                     let n car state
                     cons add 1 n
-                    cons ir-of-ident
-                            concat get-path
-                            concat "_"
-                                num-to-str n
+                    cons path-to-ident
+                            cons add '0 n get-path
                         cdr state
                 0
             0
 if  ast-is-function tree
-    let path cdr car cdr car cdr tree
+    let path reverse cdr car cdr car cdr tree
     let defs
         fold xdefs arg
              0     cdr cdr car cdr tree
@@ -893,7 +891,7 @@ if  ast-is-function tree
             defs
             compile-ir tree get-path defs
     let base ir-of-form ir-form-type-function
-        cons ir-of-ident path
+        cons path-to-ident path
         cons ir-of-form ir-form-type-params
             cons ir-of-ident "closure"
             map arg cdr cdr car cdr tree
@@ -901,14 +899,14 @@ if  ast-is-function tree
         cons ir-of-form-block
             cons compile-ir cdr cdr tree path defs
             cons ir-of-form ir-form-type-return
-                cons ir-of-ident path
+                cons path-to-ident path
                     0
                 0
             0
         concat pre cons base 0
 if  ast-is-number tree
     ir-of-form ir-form-type-let
-        cons ir-of-ident get-path
+        cons path-to-ident get-path
         cons ir-of-number cdr tree
             0
 if  ast-is-extern tree
@@ -920,7 +918,7 @@ if  ast-is-extern tree
             0
         0
 if  ast-is-lambda tree
-    let path concat get-path "_lam"
+    let path cons 'f get-path
     let defs
         defs-filter-keep-used cdr cdr tree defs defs
     let defs-init defs
@@ -935,8 +933,8 @@ if  ast-is-lambda tree
             cons add 1 car duo
                  defs-append cdr duo cdr arg cons 0 cdr arg
     ir-of-form ir-form-type-let-closure
-        cons ir-of-ident get-path
-        cons ir-of-ident path
+        cons path-to-ident get-path
+        cons path-to-ident path
             map def reverse defs-init
                 let found cdr def
                 if equal 1 car found
@@ -947,7 +945,7 @@ if  ast-is-lambda tree
                     ir-of-ident cdr found
 if  ast-is-str tree
     ir-of-form ir-form-type-let-string
-        cons ir-of-ident get-path
+        cons path-to-ident get-path
         cons ir-of-string cdr tree
             0
 ir-of-ident "<TODO: else>"
@@ -976,8 +974,6 @@ if  ir-is-form ir
             0
     if  equal type ir-form-type-block
         do  put-str "{"
-        do  put-line
-        do  put-str "  EB_ENTER();"
         do  put-line
         do  for arg args
             put-ir-c arg
@@ -1038,8 +1034,6 @@ if  ir-is-form ir
     if  equal type ir-form-type-extern
         0
     if  equal type ir-form-type-return
-        do  put-str "  EB_EXIT();"
-        do  put-line
         do  put-str "  return "
         do  put-ir-c car args
         do  put-str ";"
@@ -1069,7 +1063,7 @@ if  ir-is-ident ir
     do  put-str "eb_"
     for c ir-ident-text ir
         if  equal c '-
-            put-str "_DASH_"
+            put-str "_"
             putchar c
 if  ir-is-number ir
     put-num ir-number-value ir
@@ -1100,7 +1094,8 @@ if  str-eq lang "ir"
             put-line
 if  str-eq lang "c"
     parse-toplevel str-to-state str binding-table
-        do  put-str "#include <ebrew.h>"
+        # do  put-str read-file "include/ebrew.h" #
+        do  put-str "#include <include/ebrew.h>"
         do  put-line
         for node values
             let ir compile-ir node 0 0
@@ -1111,8 +1106,6 @@ if  str-eq lang "c"
 do  put-str "unknown target: "
 do  put-str lang
     put-line
-
-(read-file name) ?
 
 (comp-final file lang)
 main-lang lang read-file file

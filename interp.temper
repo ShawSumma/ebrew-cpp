@@ -6,11 +6,17 @@ export class Env {
   public env: GlobalScope;
   public parser: Parser;
   var putCharBuf: ListBuilder<Int>;
+  var externs: MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>;
+
+  public add(name: String, value: fn(args: Listed<Value>, k: Cont): Void): Void {
+    externs[name] = value;
+  }
 
   public constructor() {
     env = new GlobalScope(new MapBuilder<String, Value>());
     parser = new Parser("");
     putCharBuf = new ListBuilder<Int>();
+    externs = new MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>();
   }
  
   public source(code: String): Void {
@@ -65,10 +71,10 @@ export class Env {
 
   public compTree(tree: Tree): Runner {
     match (tree) {
-      is Form -> compForm(tree.as<Form>());
-      is Ident -> new LookupRunner(tree.as<Ident>().repr);
-      is Number -> new ValueRunner(number(tree.as<Number>().repr));
-      is Text -> new ValueRunner(string(tree.as<Text>().repr));
+      is Form -> compForm(tree);
+      is Ident -> new LookupRunner(tree.repr);
+      is Number -> new ValueRunner(number(tree.repr));
+      is Text -> new ValueRunner(string(tree.repr));
       else -> compErr();
     }
   }
@@ -134,7 +140,7 @@ export class Env {
         }
         k(number(0));
       };
-      "if" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "if" -> fn(args: Listed<Value>, k: Cont): Void {
         var func = if (!args[0].isZero()) {
           args[1].asLambda()
         } else {
@@ -142,9 +148,9 @@ export class Env {
         };
         func.body.run(func.scope, k);
       };
-      else -> fn(args: Listed<Value>, k: Cont): Void {
-        bubble();
-      };
+      else -> do {
+        externs[name]
+      }
     }
   }
 

@@ -180,9 +180,19 @@ export let string(id: String): Value {
   var ret: Value = number(0);
   var parts = id.split("");
   for (var i = parts.length - 1; i >= 0; i--) {
-    ret = cons(number(parts[i].codeAt(String.start)), ret);
+    ret = cons(number(parts[i][String.begin]), ret);
   }
   return ret;
+}
+
+export let unstring(value: Value): String {
+  var ret = new ListBuilder<Int>();
+  while (!value.isZero()) {
+    let cons = value.asCons();
+    ret.add(cons.first.asInt());
+    value = cons.second;
+  }
+  return ret.join("", fn(i: Int): String { String.fromCodePoint(i) });
 }
 
 export let error(): Value {

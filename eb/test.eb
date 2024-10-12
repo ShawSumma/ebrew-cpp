@@ -8,7 +8,10 @@
 (add y x) ?
 (mul y x) ?
 
-(main args)
-let x 'x
+# let (x n) add 48 n
+do  putchar x 2
+    putchar 10 #
+
+let x 48
 do  putchar x
     putchar 10
