@@ -774,6 +774,9 @@ let used scan-ast-captures tree defs
 (path-to-ident path)
 ir-of-ident reverse path
 
+(mark-for-return path)
+path
+
 (compile-ir-pre tree (get-path) defs (compile-ir tree (get-path) defs))
 if  ast-is-call tree
     reverse cdr fold state el
@@ -805,7 +808,7 @@ if  ast-is-lambda tree
     concat
         compile-ir-pre
             cdr cdr tree
-            path
+            mark-for-return path
             defs
             compile-ir tree get-path defs
         cons
@@ -816,9 +819,9 @@ if  ast-is-lambda tree
                     map arg car cdr tree
                         ir-of-ident cdr arg
                 cons ir-of-form-block
-                    cons compile-ir cdr cdr tree path defs
+                    cons compile-ir cdr cdr tree mark-for-return path defs
                     cons ir-of-form ir-form-type-return
-                        cons path-to-ident path
+                        cons path-to-ident mark-for-return path
                             0
                         0
                     0
@@ -887,7 +890,7 @@ if  ast-is-function tree
     let pre
         compile-ir-pre
             cdr cdr tree
-            path
+            mark-for-return path
             defs
             compile-ir tree get-path defs
     let base ir-of-form ir-form-type-function
@@ -897,9 +900,9 @@ if  ast-is-function tree
             map arg cdr cdr car cdr tree
                 ir-of-ident cdr arg
         cons ir-of-form-block
-            cons compile-ir cdr cdr tree path defs
+            cons compile-ir cdr cdr tree mark-for-return path defs
             cons ir-of-form ir-form-type-return
-                cons path-to-ident path
+                cons path-to-ident mark-for-return path
                     0
                 0
             0
@@ -1086,6 +1089,165 @@ if  and ir-is-form ir
         0
     0
 
+(put-ir-cpp-let name)
+concat "let_" name
+
+(put-ir-cpp-ctx ctx)
+fold n elem
+     0 ctx
+    do  and n put-str ", "
+    do  put-str elem
+        add 1 n
+
+(put-ir-cpp-name-fix name)
+concat "eb_" reverse
+    fold s c
+         0 reverse name
+        if  equal c '-
+            cons '_ s
+            cons c s
+
+(put-ir-cpp-block (put-ir-cpp ir) ctx ir)
+let args ir-form-args ir
+fold ctx ir
+        ctx reverse args
+    let type ir-form-type ir
+    let args ir-form-args ir
+    if  equal type ir-form-type-let-closure
+        do  put-str "CALL("
+        do  put-str "let_closure_"
+        do  put-ir-cpp car args
+        do  and ctx put-str ", "
+        do  put-ir-cpp-ctx ctx
+        do  and ctx put-str ", ("
+        do  fold n arg
+                 0 reverse cdr args
+            do  and n put-str ", "
+            do  put-ir-cpp arg
+                add 1 n
+        do  put-str ")) "
+        do  put-line
+        do  put-str "#define M_let_closure_"
+        do  put-ir-cpp car args
+        do  put-str " let_closure_"
+        do  put-ir-cpp car args
+        do  put-line
+        do  put-str "#define let_closure_"
+        do  put-ir-cpp car args
+        do  put-str "("
+        do  put-ir-cpp-ctx ctx
+        do  and args put-str ", "
+        do  put-ir-cpp car args
+        do  put-str ") "
+            ctx
+    if  equal type ir-form-type-let
+        do  put-str "CALL CCONS "
+        do  let ir car reverse args
+            if  and ir-is-form ir
+                    equal ir-form-type ir ir-form-type-call
+                put-ir-cpp ir
+                do  put-str "("
+                do  put-ir-cpp ir
+                do  put-str ")"
+                    0
+        do  put-str " ("
+        do  put-str "let_"
+        do  put-ir-cpp car args
+        do  and ctx put-str ", "
+        do  put-ir-cpp-ctx ctx
+        do  put-str ") "
+        do  put-line
+        do  put-str "#define M_let_"
+        do  put-ir-cpp car args
+        do  put-str " let_"
+        do  put-ir-cpp car args
+        do  put-line
+        do  put-str "#define let_"
+        do  put-ir-cpp car args
+        do  put-str "("
+        do  put-ir-cpp-ctx ctx
+        do  and ctx put-str ", "
+        do  put-ir-cpp car args
+        do  put-str ") "
+            cons put-ir-cpp-name-fix ir-ident-text car args ctx
+    if  equal type ir-form-type-return
+        do  put-str "("
+        do  put-ir-cpp car args
+        do  put-str ")"
+            ctx
+        do  put-str "/* TODO */ "
+        do  put-ir-cpp ir
+            ctx
+
+(put-ir-cpp ir)
+if  ir-is-form ir
+    let type ir-form-type ir
+    let args ir-form-args ir
+    if  equal type ir-form-type-block
+        put-ir-cpp-block put-ir-cpp ir 0 ir
+    if  equal type ir-form-type-call
+        do  put-str "CALL("
+        do  put-ir-cpp car args
+        do  fold n arg
+                 0 cdr args
+                do  put-str ", "
+                do  put-ir-cpp arg
+                    add 1 n
+        do  put-str ")"
+            0
+    if  equal type ir-form-type-function
+        let ctx
+            map arg reverse ir-form-args car cdr args
+                put-ir-cpp-name-fix ir-ident-text arg
+        do  put-line
+        do  put-str "#define M_"
+        do  put-ir-cpp car args
+        do  put-str " "
+        do  put-ir-cpp car args
+        do  put-line
+        do  put-str "#define "
+        do  put-ir-cpp car args
+        do  put-ir-cpp car cdr args
+        do  put-ir-cpp-block put-ir-cpp ir ctx car cdr cdr args
+            put-line
+    if  equal type ir-form-type-params
+        do  put-str "("
+        do  fold n arg
+                 0 reverse args
+                do  and n put-str ", "
+                do  put-ir-cpp arg
+                    add 1 n
+        do  put-str ") "
+            0
+    if  equal type ir-form-type-closure-get
+        do  put-str "OP_TUPLE_"
+        do  put-num ir-number-value car cdr args
+        do  put-str " "
+        do  put-ir-cpp car args
+            0
+    if  equal type ir-form-type-let-string
+        do  put-str "/* TODO: LET STRING */"
+            0
+    if  equal type ir-form-type-extern
+        0
+    do  put-str "/* TODO: ELSE */"
+        0
+if  ir-is-ident ir
+    do  put-str "eb_"
+    for c ir-ident-text ir
+        if  equal c '-
+            put-str "_"
+            putchar c
+if  ir-is-number ir
+    do  put-num ir-number-value ir
+        0
+if  ir-is-string ir
+    do  put-str cons '" 0
+    do  put-str ir-string-value ir
+    do  put-str cons '" 0
+        0
+0
+
 (main-lang lang str)
 if  str-eq lang "ir"
     for-ir ir str
@@ -1094,14 +1256,32 @@ if  str-eq lang "ir"
             put-line
 if  str-eq lang "c"
     parse-toplevel str-to-state str binding-table
-        # do  put-str read-file "include/ebrew.h" #
-        do  put-str "#include <include/ebrew.h>"
+        do  put-str "#include "
+        do  putchar 34
+        do  put-str "include/ebrew.h"
+        do  putchar 34
         do  put-line
         for node values
             let ir compile-ir node 0 0
             do  put-ir-c-decl car reverse ir
             for el ir
                 put-ir-c el
+        put-error info
+if  str-eq lang "cpp"
+    parse-toplevel str-to-state str binding-table
+        do  put-str "#include "
+        do  putchar 34
+        do  put-str "include/cpp.h"
+        do  putchar 34
+        do  put-line
+        do  for node values
+            let ir compile-ir node 0 0
+            for el ir
+                put-ir-cpp el
+        do  put-line
+        do  put-str "RUN(eb_main(_, _))"
+        do  put-line
+            0
         put-error info
 do  put-str "unknown target: "
 do  put-str lang

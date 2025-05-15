@@ -28,10 +28,10 @@ export let runTodo(): Void {
 ////////////
 // Scopes //
 ////////////
-export class Def {
-  public key: String;
-  public value: Value;
-}
+export class Def(
+  public key: String,
+  public value: Value,
+) {}
 
 export interface Scope {
   public lookup(name: String): Value;
@@ -40,9 +40,7 @@ export interface Scope {
 
 let notFound = number(0);
 
-export class GlobalScope extends Scope {
-  public vars: MapBuilder<String, Value>;
-
+export class GlobalScope(public vars: MapBuilder<String, Value>) extends Scope {
   public lookup(name: String): Value {
     return vars.getOr(name, notFound);
   }
@@ -56,10 +54,11 @@ export class GlobalScope extends Scope {
   }
 }
 
-export class LocalScope extends Scope {
-  public next: Scope;
-  public keys: Listed<String>;
-  public env: MapBuilder<String, Value>;
+export class LocalScope(
+  public next: Scope,
+  public keys: Listed<String>,
+  public env: MapBuilder<String, Value>,
+) extends Scope {
 
   public lookup(name: String): Value {
     if (env.has(name)) {
@@ -85,9 +84,7 @@ export interface Runner {
 
 export class ErrRunner extends Runner {}  
 
-export class LookupRunner extends Runner {
-  public name: String;
-
+export class LookupRunner(public name: String) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     request(cont, env.lookup(name));
   }
@@ -95,9 +92,7 @@ export class LookupRunner extends Runner {
 
 export const Define = fn(Listed<Value>, Cont): Void;
 
-export class DefineRunner extends Runner {
-  public callback: Define;
-
+export class DefineRunner(public callback: Define) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     var ls = new ListBuilder<Value>();
     for (var i = 0; i < env.keys.length; i++) {
@@ -107,19 +102,19 @@ export class DefineRunner extends Runner {
   }
 }
 
-export class LambdaRunner extends Runner {
-  public params: List<String>;
-  public body: Runner;
-  
+export class LambdaRunner(
+  public params: List<String>,
+  public body: Runner,
+) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     request(cont, lambda(env, params, body));
   }
 }
 
-export class CallRunner extends Runner {
-  public funcName: String;
-  public args: List<Runner>;
-
+export class CallRunner(
+  public funcName: String,
+  public args: List<Runner>,
+) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     let func = env.lookup(funcName).asLambda();
     var scopeArgs = new MapBuilder<String, Value>();
@@ -143,20 +138,11 @@ export class CallRunner extends Runner {
   }
 }
 
-export class ValueRunner extends Runner {
-  public value: Value;
-
+export class ValueRunner(
+  public value: Value,
+) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     request(cont, value);
-  }
-}
-
-export class Err {
-  public msg: String;
-
-  constructor(err: String) {
-    console.log(err);
-    msg = err;
   }
 }
 
@@ -209,10 +195,10 @@ export interface Value {
   public toString(): String;
 }
 
-export class Cons extends Value {
-  public first: Value;
-  public second: Value;
-
+export class Cons(
+  public first: Value,
+  public second: Value,
+) extends Value {
   public isZero(): Boolean {
     return false;
   }
@@ -226,11 +212,11 @@ export class Cons extends Value {
   }
 }
 
-export class Lambda extends Value {
-  public scope: LocalScope;
-  public params: List<String>;
-  public body: Runner;
-
+export class Lambda(
+  public scope: LocalScope,
+  public params: List<String>,
+  public body: Runner,
+) extends Value {
   public isTrue(): Boolean {
     return false;
   }
@@ -244,9 +230,7 @@ export class Lambda extends Value {
   }
 }
 
-class ValueInt extends Value {
-  public value: Int;
-
+class ValueInt(public value: Int) extends Value {
   public isZero(): Boolean {
     return value == 0;
   }

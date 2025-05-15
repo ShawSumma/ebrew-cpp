@@ -14,4 +14,5 @@ do  putchar car s
     puts cdr s
 
 (main args)
-puts "hello, world!"
+do  puts "hello, world!"
+    putchar 10

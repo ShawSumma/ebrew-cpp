@@ -1,0 +1,9 @@
+
+(cons a b) ?
+
+(let [x] x (in x)) in x
+
+(main args)
+let x 2
+let y 3
+    cons x y

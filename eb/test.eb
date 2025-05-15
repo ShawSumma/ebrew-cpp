@@ -1,17 +1,11 @@
 
-(putchar x) ?
+(cons x y) ?
+(car c) ?
+(cdr c) ?
 
-(let [name] name (in name)) in name
+(let [x] x (in x)) in x
 
-(do x y) y
-
-(add y x) ?
-(mul y x) ?
-
-# let (x n) add 48 n
-do  putchar x 2
-    putchar 10 #
-
-let x 48
-do  putchar x
-    putchar 10
+(main args)
+let a 10
+let b 20
+    a

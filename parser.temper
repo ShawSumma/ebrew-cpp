@@ -3,10 +3,7 @@ export interface Tree {
   public toString(): String;
 }
 
-export class Form extends Tree {
-  public form: String;
-  public args: List<Tree>;
-
+export class Form(public form: String, public args: List<Tree>) extends Tree {
   public toString(): String {
     var join = args.join(" ", fn(s: Tree) {
       return s.toString();
@@ -15,25 +12,19 @@ export class Form extends Tree {
   }
 }
 
-export class Ident extends Tree {
-  public repr: String;
-
+export class Ident(public repr: String) extends Tree {
   public toString(): String {
     return repr;
   }
 }
 
-export class Number extends Tree {
-  public repr: Int;
-
+export class Number(public repr: Int) extends Tree {
   public toString(): String {
     return "<int: ${repr.toString()}>";
   }
 } 
 
-export class Text extends Tree {
-  public repr: String;
-
+export class Text(public repr: String) extends Tree {
   public type(): String {
     return "text";
   }
@@ -43,15 +34,7 @@ export class Text extends Tree {
   }
 } 
 
-class State {
-  public str: List<String>;
-  public pos: Int;
-
-  public constructor(src: String) {
-    str = src.split("");
-    pos = 0;
-  }
-
+class State(public str: List<String>, public pos: Int = 0) {
   public skip(): Void {
     pos += 1;
   }
@@ -75,18 +58,18 @@ class State {
   }
 }
 
-class GenericBinding {
-  public key: String;
-  public value: Binding;
-}
+class GenericBinding(
+  public key: String,
+  public value: Binding,
+) {}
 
-class Binding {
-  public name: String;
-  public generics: List<String>;
-  public args: List<Binding>;
-  public known: List<String>;
-  public isFunc: Boolean;
-   
+class Binding(
+  public name: String,
+  public generics: List<String>,
+  public args: List<Binding>,
+  public known: List<String>,
+  public isFunc: Boolean,
+) {   
   public let toString(): String {
     if (isFunc) {
       var genericsJoin = generics.join(" ", fn(s: String): String {s});
@@ -144,33 +127,26 @@ let canFind(s: List<String>, v: String): Boolean {
   return false;
 }
 
-class ArgArray {
-  public generic: List<String>;
-  public args: List<Binding>;
-}
+class ArgArray(
+  public generic: List<String>,
+  public args: List<Binding>,
+) {}
 
 export class Parser {
-  public state: State;
-  public defs: ListBuilder<List<Binding>>;
-  public generics: ListBuilder<List<GenericBinding>>;
-
-  public constructor(src: String) {
-    state = new State(src);
-    defs = new ListBuilder<List<Binding>>();
-    defs.add([]);
-    generics = new ListBuilder<List<GenericBinding>>();
-  }
-
+  private state: State = new State([]);
+  private defs: ListBuilder<List<Binding>> = new ListBuilder<List<Binding>>();
+  private generics: ListBuilder<List<GenericBinding>> = new ListBuilder<List<GenericBinding>>();
+  
   public setState(src: String): Void {
-    state = new State(src);
+    state = new State(src.split(""));
   }
 
-  public err(str: String): Void {
+  private err(str: String): Void {
     console.log(state.pos.toString());
     console.log(str);
   }
 
-  public skipSpace(): Void {
+  private skipSpace(): Void {
     while (!state.done() && (isSpaceChar(state.first()) || state.first() == "#")) {
       if (isSpaceChar(state.first())) {
         state.skip();
@@ -190,7 +166,7 @@ export class Parser {
     }
   }
 
-  public readName(): String {
+  private readName(): String {
     skipSpace();
     var build = new ListBuilder<String>();
     while (!state.done() && isWordChar(state.first())) {
@@ -201,7 +177,7 @@ export class Parser {
     return name;
   }
 
-  public readArgArray(known_: List<String>): ArgArray {
+  private readArgArray(known_: List<String>): ArgArray {
     var known = known_.toListBuilder();
     skipSpace();
     if (state.first() != "(") {
@@ -237,7 +213,7 @@ export class Parser {
     return new ArgArray(generic.toList(), args.toList());
   }
 
-  public readGeneric(): Binding {
+  private readGeneric(): Binding {
     skipSpace();
     if (state.first() != "(") {
       return new Binding(readName(), [], [], [], false);
@@ -247,7 +223,7 @@ export class Parser {
     }
   }
 
-  public findGenericOr(name: String, els: Binding): Binding {
+  private findGenericOr(name: String, els: Binding): Binding {
     for (var i = generics.length-1; i >= 0; i--) {
       var genericList = generics[i];
       for (var j = 0; j < genericList.length; j++) {
@@ -259,7 +235,7 @@ export class Parser {
     return els;
   }
   
-  public readCall(name: String): Tree {
+  private readCall(name: String): Tree {
     for (var defsIndex = defs.length-1; defsIndex >= 0; defsIndex--) {
       var scope = defs[defsIndex];
       for (var scopeIndex = 0; scopeIndex < scope.length; scopeIndex++) {
@@ -340,7 +316,7 @@ export class Parser {
     return res;
   }
 
-  public readFunc(type: Binding): Tree {
+  private readFunc(type: Binding): Tree {
     var names = new ListBuilder<Tree>();
     var defLayer = new ListBuilder<Binding>();
     var known = new ListBuilder<String>();
@@ -369,7 +345,7 @@ export class Parser {
     return ret;
   }
 
-  public readExprMatch(type: Binding): Tree {
+  private readExprMatch(type: Binding): Tree {
     skipSpace();
     var paren = state.first() == "(";
     skipSpace();
@@ -389,7 +365,7 @@ export class Parser {
     return ret;
   }
 
-  public readDef(): Tree {
+  private readDef(): Tree {
     var ret: Tree = new Ident("?");
     skipSpace();
     var ty = readArgArray([]);
@@ -411,6 +387,9 @@ export class Parser {
   }
 
   public readDefs(): Tree {
+    if (defs.length == 0) {
+      defs.add([]);
+    }
     var all = new ListBuilder<Tree>();
     while (!state.done()) {
       skipSpace();

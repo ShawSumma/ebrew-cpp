@@ -3,22 +3,15 @@ let {...} = import("./parser.temper");
 let {...} = import("./value.temper");
 
 export class Env {
-  public env: GlobalScope;
-  public parser: Parser;
-  var putCharBuf: ListBuilder<Int>;
-  var externs: MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>;
+  public env: GlobalScope = new GlobalScope(new MapBuilder<String, Value>());
+  public parser: Parser = new Parser();
+  private putCharBuf: ListBuilder<Int> = new ListBuilder<Int>();
+  private externs: MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void> = new MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>();
 
   public add(name: String, value: fn(args: Listed<Value>, k: Cont): Void): Void {
     externs[name] = value;
   }
 
-  public constructor() {
-    env = new GlobalScope(new MapBuilder<String, Value>());
-    parser = new Parser("");
-    putCharBuf = new ListBuilder<Int>();
-    externs = new MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>();
-  }
- 
   public source(code: String): Void {
     parser.setState(code);
     var prog = parser.readDefs();

@@ -2,7 +2,7 @@
 *.dsym
 *.exe
 *.o
-*.out
+*.out*
 *.c
 .DS_Store
 .mypy_cache
