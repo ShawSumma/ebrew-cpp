@@ -2,10 +2,7 @@
 (cons x y) ?
 (car c) ?
 (cdr c) ?
-
-(let [x] x (in x)) in x
+(if c (t) (f)) ?
 
 (main args)
-let a 10
-let b 20
-    a
+cons 0 cons 1 cons 2 0

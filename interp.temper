@@ -1,7 +1,4 @@
 
-let {...} = import("./parser.temper");
-let {...} = import("./value.temper");
-
 export class Env {
   public env: GlobalScope = new GlobalScope(new MapBuilder<String, Value>());
   public parser: Parser = new Parser();
@@ -12,13 +9,13 @@ export class Env {
     externs[name] = value;
   }
 
-  public source(code: String): Void {
+  public source(code: String): Void | Bubble  {
     parser.setState(code);
     var prog = parser.readDefs();
     compProgram(prog);
   }
 
-  public call(name: String, args: Listed<Value>): Value {
+  public call(name: String, args: Listed<Value>): Value | Bubble {
     var func = env.lookup(name).asLambda();
     var res: Value = number(0);
     var cont = fn(v: Value): Void {
@@ -39,22 +36,24 @@ export class Env {
     return new ErrRunner();
   }
 
-  public compLambda(form: Form): Runner {
+  public compLambda(form: Form): Runner | Bubble {
     var params = form.args[0].as<Form>().args.map(fn(s: Tree): String {
-      return s.as<Ident>().repr;
+      return s.as<Ident>().repr orelse "";
     });
     var body = compTree(form.args[1]);
     return new LambdaRunner(params, body);
   }
 
-  public compCall(form: Form): Runner {
+  public compCall(form: Form): Runner | Bubble {
     var funcName = form.args[0].as<Ident>().repr;
     var self = this;
-    var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {self.compTree(t)});
+    var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {
+      self.compTree(t) orelse new ErrRunner()
+    });
     return new CallRunner(funcName, args);
   }
 
-  public compForm(form: Form): Runner {
+  public compForm(form: Form): Runner | Bubble  {
     when (form.form) {
       "call" -> compCall(form);
       "lambda" -> compLambda(form);
@@ -62,7 +61,7 @@ export class Env {
     }
   }
 
-  public compTree(tree: Tree): Runner {
+  public compTree(tree: Tree): Runner | Bubble  {
     when (tree) {
       is Form -> compForm(tree);
       is Ident -> new LookupRunner(tree.repr);
@@ -74,57 +73,57 @@ export class Env {
 
   public flush(): Void {
     console.log(putCharBuf.join("", fn(codePoint: Int): String {
-      return String.fromCodePoint(codePoint);
+      return String.fromCodePoint(codePoint) orelse "";
     }));
     putCharBuf = new ListBuilder<Int>();
   }
 
-  public putchar(c: Int): Void {
+  public putchar(c: Int): Void | Bubble {
     putCharBuf.add(c);
   }
 
-  public compExternName(name: String): Define {
+  public compExternName(name: String): Define | Bubble {
     var self = this;
     when (name) {
-      "equal" -> fn(args: Listed<Value>, k: Cont): Void {
+      "equal" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         if (args[0].asInt() == args[1].asInt()) {
           k(number(1));
         } else {
           k(number(0));
         }
       };
-      "above" -> fn(args: Listed<Value>, k: Cont): Void {
+      "above" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         if (args[1].asInt() < args[0].asInt()) {
           k(number(1));
         } else {
           k(number(0));
         }
       };
-      "cons" -> fn(args: Listed<Value>, k: Cont): Void {
+      "cons" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(cons(args[0], args[1]));
       };
-      "car" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "car" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(args[0].asCons().first);
       };
-      "cdr" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "cdr" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(args[0].asCons().second);
       };
-      "add" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "add" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(number(args[1].asInt() + args[0].asInt()));
       };
-      "sub" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "sub" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(number(args[1].asInt() - args[0].asInt()));
       };
-      "mul" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "mul" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(number(args[1].asInt() * args[0].asInt()));
       };
-      "div" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "div" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(number(args[1].asInt() / args[0].asInt()));
       };
-      "mod" ->  fn(args: Listed<Value>, k: Cont): Void {
+      "mod" ->  fn(args: Listed<Value>, k: Cont): Void | Bubble {
         k(number(args[1].asInt() % args[0].asInt()));
       };
-      "putchar" -> fn(args: Listed<Value>, k: Cont): Void {
+      "putchar" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         var c = args[0].asInt();
         if (c == 10) {
           self.flush();
@@ -133,7 +132,7 @@ export class Env {
         }
         k(number(0));
       };
-      "if" -> fn(args: Listed<Value>, k: Cont): Void {
+      "if" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         var func = if (!args[0].isZero()) {
           args[1].asLambda()
         } else {
@@ -147,20 +146,20 @@ export class Env {
     }
   }
 
-  public compExtern(form: Form): Void {
+  public compExtern(form: Form): Void | Bubble {
     var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
     var params = form.args[1].as<Form>().args.map(fn(x: Tree): String {
-      return x.as<Form>().args[0].as<Ident>().repr;
+      return x.as<Form>().args[0].as<Ident>().repr orelse "";
     });
     var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
     var lambda = lambda(localEnv, params, new DefineRunner(compExternName(name)));
     env.add(name, lambda);
   }
 
-  public compFunc(form: Form): Void {
+  public compFunc(form: Form): Void | Bubble {
     var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
     var params = form.args[1].as<Form>().args.map(fn(x: Tree): String {
-      return x.as<Form>().args[0].as<Ident>().repr;
+      return x.as<Form>().args[0].as<Ident>().repr orelse "";
     });
     var body = compTree(form.args[2]);
     var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
@@ -168,7 +167,7 @@ export class Env {
     env.add(name, lambda);
   }
 
-  public compTopForm(form: Form): Void {
+  public compTopForm(form: Form): Void | Bubble  {
     when (form.form) {
       "extern" -> compExtern(form);
       "func" -> compFunc(form);
@@ -176,7 +175,7 @@ export class Env {
     }
   }
 
-  public compProgram(tree: Tree): Void {
+  public compProgram(tree: Tree): Void | Bubble {
     var form = tree.as<Form>();
     for (var i = 0; i < form.args.length; i++) {
       compTopForm(form.args[i].as<Form>());

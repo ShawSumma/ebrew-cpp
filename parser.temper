@@ -43,7 +43,7 @@ class State(public str: List<String>, public pos: Int = 0) {
     return str.length <= pos;
   }
 
-  public first(): String {
+  public first(): String | Bubble {
     if (pos >= str.length) {
       return " "
     } else {
@@ -51,7 +51,7 @@ class State(public str: List<String>, public pos: Int = 0) {
     }
   }
 
-  public read(): String {
+  public read(): String | Bubble {
     var ret = first();
     skip();
     return ret;
@@ -83,9 +83,9 @@ class Binding(
   public let toType(): Tree {
     if (isFunc && args.length != 0) {
       var formArgs = new ListBuilder<Tree>();
-      formArgs.add(new Ident(name));
+      formArgs.add(new Ident(name)) orelse do {};
       for (var i = 0; i < args.length; i++) {
-        formArgs.add(args[i].toType());
+        formArgs.add(args[i].toType()) orelse do {};
       }
       return new Form("type.func", formArgs.toList());
     } else {
@@ -99,7 +99,7 @@ let parseInt(s: String): Int {
   var code = String.begin;
   while (s.hasIndex(code)) {
     ret *= 10;
-    ret += s[code] - 48;
+    ret += s[code] - 48 orelse 0;
     code = s.next(code);
   }
   return ret;
@@ -120,7 +120,7 @@ let isWordChar(s: String): Boolean {
 
 let canFind(s: List<String>, v: String): Boolean {
   for (var i = 0; i < s.length; i++) {
-    if (s[i] == v) {
+    if (s[i] == v orelse false) {
       return true;
     }
   }
@@ -137,16 +137,16 @@ export class Parser {
   private defs: ListBuilder<List<Binding>> = new ListBuilder<List<Binding>>();
   private generics: ListBuilder<List<GenericBinding>> = new ListBuilder<List<GenericBinding>>();
   
-  public setState(src: String): Void {
+  public setState(src: String): Void | Bubble {
     state = new State(src.split(""));
   }
 
-  private err(str: String): Void {
+  private err(str: String): Void | Bubble {
     console.log(state.pos.toString());
     console.log(str);
   }
 
-  private skipSpace(): Void {
+  private skipSpace(): Void | Bubble {
     while (!state.done() && (isSpaceChar(state.first()) || state.first() == "#")) {
       if (isSpaceChar(state.first())) {
         state.skip();
@@ -166,7 +166,7 @@ export class Parser {
     }
   }
 
-  private readName(): String {
+  private readName(): String | Bubble {
     skipSpace();
     var build = new ListBuilder<String>();
     while (!state.done() && isWordChar(state.first())) {
@@ -177,7 +177,7 @@ export class Parser {
     return name;
   }
 
-  private readArgArray(known_: List<String>): ArgArray {
+  private readArgArray(known_: List<String>): ArgArray | Bubble {
     var known = known_.toListBuilder();
     skipSpace();
     if (state.first() != "(") {
@@ -213,7 +213,7 @@ export class Parser {
     return new ArgArray(generic.toList(), args.toList());
   }
 
-  private readGeneric(): Binding {
+  private readGeneric(): Binding | Bubble {
     skipSpace();
     if (state.first() != "(") {
       return new Binding(readName(), [], [], [], false);
@@ -223,7 +223,7 @@ export class Parser {
     }
   }
 
-  private findGenericOr(name: String, els: Binding): Binding {
+  private findGenericOr(name: String, els: Binding): Binding | Bubble {
     for (var i = generics.length-1; i >= 0; i--) {
       var genericList = generics[i];
       for (var j = 0; j < genericList.length; j++) {
@@ -235,7 +235,7 @@ export class Parser {
     return els;
   }
   
-  private readCall(name: String): Tree {
+  private readCall(name: String): Tree | Bubble {
     for (var defsIndex = defs.length-1; defsIndex >= 0; defsIndex--) {
       var scope = defs[defsIndex];
       for (var scopeIndex = 0; scopeIndex < scope.length; scopeIndex++) {
@@ -243,7 +243,7 @@ export class Parser {
         if (binding.name == name) {
           if (binding.isFunc) {
             var argValues = new ListBuilder<Tree>();
-            argValues.add(new Ident(name));
+            argValues.add(new Ident(name)) orelse do {};
             var genericLayer = new ListBuilder<GenericBinding>();
             var defLayer = new ListBuilder<Binding>();
             var impls = new ListBuilder<String>();
@@ -282,7 +282,7 @@ export class Parser {
     return new Ident("?");
   }
 
-  public readSingle(): Tree {
+  public readSingle(): Tree | Bubble {
     skipSpace();
     if (state.first() == "\'") {
       state.skip();
@@ -316,7 +316,7 @@ export class Parser {
     return res;
   }
 
-  private readFunc(type: Binding): Tree {
+  private readFunc(type: Binding): Tree | Bubble {
     var names = new ListBuilder<Tree>();
     var defLayer = new ListBuilder<Binding>();
     var known = new ListBuilder<String>();
@@ -332,10 +332,10 @@ export class Parser {
         var generic = findGenericOr(arg.name, new Binding("?", [], [], [], false));
         defLayer.add(generic);
         // console.log("arg: ${arg.name}; geneirc: ${generic.name}")
-        names.add(new Ident(generic.name));
+        names.add(new Ident(generic.name)) orelse do {};
       } else {
         defLayer.add(arg);
-        names.add(new Ident(arg.name));
+        names.add(new Ident(arg.name)) orelse do {};
       }
     }
     defs.add(defLayer.toList());
@@ -345,7 +345,7 @@ export class Parser {
     return ret;
   }
 
-  private readExprMatch(type: Binding): Tree {
+  private readExprMatch(type: Binding): Tree | Bubble {
     skipSpace();
     var paren = state.first() == "(";
     skipSpace();
@@ -365,7 +365,7 @@ export class Parser {
     return ret;
   }
 
-  private readDef(): Tree {
+  private readDef(): Tree | Bubble {
     var ret: Tree = new Ident("?");
     skipSpace();
     var ty = readArgArray([]);
@@ -386,7 +386,7 @@ export class Parser {
     return ret;
   }
 
-  public readDefs(): Tree {
+  public readDefs(): Tree | Bubble {
     if (defs.length == 0) {
       defs.add([]);
     }

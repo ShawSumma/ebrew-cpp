@@ -1,0 +1,14 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-I",
+      "temper.out/cpp",
+      "-fmax-errors=5",
+      "driver/comp.cpp"
+    ],
+    "directory": "C:/Users/shaws/code/temper-ebb-compiler",
+    "file": "C:/Users/shaws/code/temper-ebb-compiler/driver/comp.cpp"
+  }
+]

@@ -1139,8 +1139,9 @@ fold ctx ir
         do  and args put-str ", "
         do  put-ir-cpp car args
         do  put-str ") "
-            ctx
-    if  equal type ir-form-type-let
+            cons put-ir-cpp-name-fix ir-ident-text car args ctx
+    if  or  equal type ir-form-type-let
+            equal type ir-form-type-let-string
         do  put-str "CALL CCONS "
         do  let ir car reverse args
             if  and ir-is-form ir
@@ -1178,6 +1179,14 @@ fold ctx ir
         do  put-str "/* TODO */ "
         do  put-ir-cpp ir
             ctx
+
+(put-ir-cpp-nat n)
+if n
+    do  put-str "(1, "
+    do  put-ir-cpp-nat sub 1 n
+    do  put-str ")"
+        0
+    put-str "(0)"
 
 (put-ir-cpp ir)
 if  ir-is-form ir
@@ -1225,9 +1234,6 @@ if  ir-is-form ir
         do  put-str " "
         do  put-ir-cpp car args
             0
-    if  equal type ir-form-type-let-string
-        do  put-str "/* TODO: LET STRING */"
-            0
     if  equal type ir-form-type-extern
         0
     do  put-str "/* TODO: ELSE */"
@@ -1239,12 +1245,17 @@ if  ir-is-ident ir
             put-str "_"
             putchar c
 if  ir-is-number ir
-    do  put-num ir-number-value ir
-        0
+    put-ir-cpp-nat ir-number-value ir
 if  ir-is-string ir
-    do  put-str cons '" 0
-    do  put-str ir-string-value ir
-    do  put-str cons '" 0
+    do  for c ir-string-value ir
+        do  put-str "(TYPE_CONS, "
+        do  put-ir-cpp-nat c
+        do  put-str ", "
+            0
+    do  put-ir-cpp-nat 0
+    do  for c ir-string-value ir
+        do  putchar ')
+            0
         0
 0
 
@@ -1279,7 +1290,7 @@ if  str-eq lang "cpp"
             for el ir
                 put-ir-cpp el
         do  put-line
-        do  put-str "RUN(eb_main(_, _))"
+        do  put-str "RUN()"
         do  put-line
             0
         put-error info

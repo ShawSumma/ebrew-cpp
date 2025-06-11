@@ -1,9 +1,13 @@
 
+(if c (t) (f)) ?
 (cons a b) ?
+(car c) ?
+(cdr c) ?
 
 (let [x] x (in x)) in x
 
+(twice-cons (f)) cons f f
+
 (main args)
-let x 2
-let y 3
-    cons x y
+twice-cons
+twice-cons 0

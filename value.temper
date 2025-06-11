@@ -90,15 +90,15 @@ export class LookupRunner(public name: String) extends Runner {
   }
 }
 
-export const Define = fn(Listed<Value>, Cont): Void;
+export const Define = fn(Listed<Value>, Cont): Void | Bubble;
 
 export class DefineRunner(public callback: Define) extends Runner {
   public run(env: LocalScope, cont: Cont): Void {
     var ls = new ListBuilder<Value>();
     for (var i = 0; i < env.keys.length; i++) {
-      ls.add(env.env[env.keys[i]]);
+      ls.add(env.env[env.keys[i]]) orelse do {};
     }
-    callback(ls, cont);
+    callback(ls, cont) orelse do {};
   }
 }
 
@@ -129,11 +129,11 @@ export class CallRunner(
         if (numScopeArgs == self.args.length) {
           func.body.run(new LocalScope(func.scope, func.params, scopeArgs), cont);
         } else {
-          self.args[scopeArgs.length].run(env, more);
+          self.args[scopeArgs.length].run(env, more) orelse do {};
         }
       }
 
-      self.args[0].run(env, more);
+      self.args[0].run(env, more) orelse do {};
     }
   }
 }
@@ -166,7 +166,7 @@ export let string(id: String): Value {
   var ret: Value = number(0);
   var parts = id.split("");
   for (var i = parts.length - 1; i >= 0; i--) {
-    ret = cons(number(parts[i][String.begin]), ret);
+    (ret = cons(number(parts[i][String.begin]), ret)) orelse do {};
   }
   return ret;
 }
@@ -175,15 +175,12 @@ export let unstring(value: Value): String {
   var ret = new ListBuilder<Int>();
   while (!value.isZero()) {
     let cons = value.asCons();
-    ret.add(cons.first.asInt());
+    ret.add(cons.first.asInt()) orelse do {};
     value = cons.second;
   }
-  return ret.join("", fn(i: Int): String { String.fromCodePoint(i) });
-}
-
-export let error(): Value {
-  bubble();
-  return error();
+  return ret.join("", fn(i: Int): String {
+    String.fromCodePoint(i) orelse ""
+  });
 }
 
 export interface Value {
