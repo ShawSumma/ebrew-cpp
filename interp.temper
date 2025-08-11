@@ -2,7 +2,7 @@
 export class Env {
   public env: GlobalScope = new GlobalScope(new MapBuilder<String, Value>());
   public parser: Parser = new Parser();
-  private putCharBuf: ListBuilder<Int> = new ListBuilder<Int>();
+  private var putCharBuf: ListBuilder<Int> = new ListBuilder<Int>();
   private externs: MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void> = new MapBuilder<String, fn(args: Listed<Value>, k: Cont): Void>();
 
   public add(name: String, value: fn(args: Listed<Value>, k: Cont): Void): Void {
@@ -37,15 +37,15 @@ export class Env {
   }
 
   public compLambda(form: Form): Runner | Bubble {
-    var params = form.args[0].as<Form>().args.map(fn(s: Tree): String {
-      return s.as<Ident>().repr orelse "";
+    var params = (form.args[0] as Form).args.map(fn(s: Tree): String {
+      return (s as Ident).repr orelse "";
     });
     var body = compTree(form.args[1]);
     return new LambdaRunner(params, body);
   }
 
   public compCall(form: Form): Runner | Bubble {
-    var funcName = form.args[0].as<Ident>().repr;
+    var funcName = (form.args[0] as Ident).repr;
     var self = this;
     var args = form.args.slice(1, form.args.length).map(fn(t: Tree): Runner {
       self.compTree(t) orelse new ErrRunner()
@@ -147,9 +147,9 @@ export class Env {
   }
 
   public compExtern(form: Form): Void | Bubble {
-    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
-    var params = form.args[1].as<Form>().args.map(fn(x: Tree): String {
-      return x.as<Form>().args[0].as<Ident>().repr orelse "";
+    var name = ((form.args[0] as Form).args[0] as Ident).repr;
+    var params = (form.args[1] as Form).args.map(fn(x: Tree): String {
+      return ((x as Form).args[0] as Ident).repr orelse "";
     });
     var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
     var lambda = lambda(localEnv, params, new DefineRunner(compExternName(name)));
@@ -157,9 +157,9 @@ export class Env {
   }
 
   public compFunc(form: Form): Void | Bubble {
-    var name = form.args[0].as<Form>().args[0].as<Ident>().repr;
-    var params = form.args[1].as<Form>().args.map(fn(x: Tree): String {
-      return x.as<Form>().args[0].as<Ident>().repr orelse "";
+    var name = ((form.args[0] as Form).args[0] as Ident).repr;
+    var params = (form.args[1] as Form).args.map(fn(x: Tree): String {
+      return ((x as Form).args[0] as Ident).repr orelse "";
     });
     var body = compTree(form.args[2]);
     var localEnv = new LocalScope(env, params, new MapBuilder<String, Value>());
@@ -176,9 +176,9 @@ export class Env {
   }
 
   public compProgram(tree: Tree): Void | Bubble {
-    var form = tree.as<Form>();
+    var form = tree as Form;
     for (var i = 0; i < form.args.length; i++) {
-      compTopForm(form.args[i].as<Form>());
+      compTopForm(form.args[i] as Form);
     }
   }
 }

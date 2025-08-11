@@ -34,7 +34,7 @@ export class Text(public repr: String) extends Tree {
   }
 } 
 
-class State(public str: List<String>, public pos: Int = 0) {
+class State(public str: List<String>, public var pos: Int = 0) {
   public skip(): Void {
     pos += 1;
   }
@@ -133,7 +133,7 @@ class ArgArray(
 ) {}
 
 export class Parser {
-  private state: State = new State([]);
+  private var state: State = new State([]);
   private defs: ListBuilder<List<Binding>> = new ListBuilder<List<Binding>>();
   private generics: ListBuilder<List<GenericBinding>> = new ListBuilder<List<GenericBinding>>();
   

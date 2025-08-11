@@ -1,7 +1,7 @@
 import {argv} from 'process';
 import {readFile} from 'fs/promises';
-import {Env} from '../temper.out/js/eb/interp.js';
-import {runTodo, string, unstring} from '../temper.out/js/eb/value.js';
+import {Env} from '../temper.out/js/eb/index.js';
+import {runTodo, string, unstring} from '../temper.out/js/eb/index.js';
 import {URL} from 'url';
 
 const main = async () => {
