@@ -10,4 +10,4 @@
 
 (main args)
 twice-cons
-twice-cons 0
+twice-cons 1

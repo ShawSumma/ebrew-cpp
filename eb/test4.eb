@@ -1,0 +1,16 @@
+
+(if c (t) (f)) ?
+(cons a b) ?
+(car c) ?
+(cdr c) ?
+
+(pred c) ?
+(succ c) ?
+
+(add x y)
+if x
+    add pred x succ y
+    y
+
+(main args)
+add 3 2

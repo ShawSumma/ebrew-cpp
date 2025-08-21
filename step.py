@@ -1,10 +1,12 @@
 
 import subprocess
 
+CLEAR = '\x1B[2J\x1B[H'
+
 once = False
 
 with open('ebrew.out.h', 'w') as f:
-    subprocess.check_call(f'node driver/comp.mjs cpp eb/test3.eb', stdout = f)
+    subprocess.check_call(f'node driver/comp.mjs cpp eb/test4.eb', stdout = f)
 
 try:
     res = subprocess.run(f'gcc -E -P ebrew.out.h', capture_output = True)
@@ -22,7 +24,7 @@ try:
                 break
             last = cur
             steps += 1
-            print(last.strip())
+            print(CLEAR + last.strip())
         res = subprocess.run(f'gcc -E -P ebrew.out.h -D"RUN()=FINAL {last}"', capture_output = True)
         last = res.stdout.decode('utf-8')
         steps += 1

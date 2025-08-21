@@ -1,13 +1,20 @@
 
 import subprocess
 import tempfile
+import sys
+import glob
+import os
+
+HERE: str = os.path.dirname(os.path.realpath(__file__)) 
 
 def run_file(path: str) -> str:
     cpp: str = subprocess.check_output(['node', 'driver/comp.mjs', 'cpp', path]).decode('utf-8')
+    with open('ebrew.c', 'w') as f:
+        f.write(cpp)
     with tempfile.TemporaryFile('w+') as f:
         f.write(cpp)
         f.seek(0)
-        return subprocess.check_output(['cc', '-w', '-', '-E', '-P'], stdin = f).decode('utf-8')
+        return subprocess.check_output(['cc', '-w', '-', '-E', '-P'], stdin = f, cwd = HERE).decode('utf-8')
 
 def run_str(code: str) -> str:
     with tempfile.NamedTemporaryFile('w+') as f:
@@ -52,7 +59,10 @@ class Cons(Object):
         return isinstance(other, Object) and other.a == self.a and other.b == self.b
 
     def __str__(self) -> str:
-        return 'cons {self.a} {self.b}'
+        return f'cons {self.a} {self.b}'
+
+class ParseError(Exception):
+    pass
 
 def parse_result(src: str) -> Object:
     stack: list[Object] = []
@@ -65,18 +75,25 @@ def parse_result(src: str) -> Object:
                     case Nat(n):
                         stack.append(Nat(n+1))
                     case Cons(a, b):
-                        raise Exception('invalid: (1, (2, a, b))')
+                        raise ParseError('invalid: (1, (2, a, b))')
             case '2':
                 b, a = stack.pop(), stack.pop()
                 stack.append(Cons(a, b))
             case _:
-                assert c in '(), \n\r', c
+                if c not in '() ,':
+                    raise ParseError(f'invalid char: {c}')
     return stack.pop()
 
 def main():
-    res: str = run_file('eb/test2.eb')
-    py: Object = parse_result(res)
-    print(py)
+    for arg in sys.argv[1:]:
+        for file in glob.glob(arg, recursive = True):
+            res: str = run_file(file).strip('\r\n')
+            try:
+                py: Object = parse_result(res)
+            except Exception as e:
+                print(res)
+                continue
+            print(py)
     # print(py)
 
 if __name__ == '__main__':
