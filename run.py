@@ -1,100 +1,100 @@
 
 import subprocess
-import tempfile
 import sys
 import glob
 import os
+import re
+import time
 
 HERE: str = os.path.dirname(os.path.realpath(__file__)) 
+CLEAR = '\x1B[1J\x1B[H'
+# CLEAR = '\x1B[2J\x1B[H'
 
-def run_file(path: str) -> str:
-    cpp: str = subprocess.check_output(['node', 'driver/comp.mjs', 'cpp', path]).decode('utf-8')
-    with open('ebrew.c', 'w') as f:
-        f.write(cpp)
-    with tempfile.TemporaryFile('w+') as f:
-        f.write(cpp)
-        f.seek(0)
-        return subprocess.check_output(['cc', '-w', '-', '-E', '-P'], stdin = f, cwd = HERE).decode('utf-8')
+assert os.path.exists(HERE) and HERE != ''
 
-def run_str(code: str) -> str:
-    with tempfile.NamedTemporaryFile('w+') as f:
-        f.write(code)
-        f.seek(0)
-        return run_file(f.name)
+class CPP:
+    code: str
+    cpp: str
 
-class Object:
-    pass
+    def __init__(self, code: str) -> None:
+        self.code = code
+        self.cpp = 'eb_main(_, _)'
 
-class Nat(Object):
-    value: int
+    def step(self) -> bool:
+        with open('ebrew.c', 'wb') as f:
+            f.write(self.code.encode('utf-8'))
+        prog = f'#define RUN\n#include "ebrew.c"\n{self.cpp}'
+        with open('cur.c', 'wb') as f:
+            f.write(prog.encode('utf-8'))
+        res = subprocess.run(['gcc', '-E', '-P', 'cur.c'], capture_output = True)
+        if res == self.cpp:
+            return False
+        else:
+            self.cpp = res.stdout.decode('utf-8').strip()
+            return True
 
-    __match_args__ = ('value',)
-
-    def __init__(self, value: int) -> None:
-        self.value = value
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-    
-    def __eq__(self, other: object) -> bool:
-        return other == self.value or (isinstance(other, Nat) and other.value == self.value)
-    
-    def __str__(self) -> str:
-        return str(self.value)
-    
-class Cons(Object):
-    a: Object
-    b: Object
-    
-    __match_args__ = ('a', 'b')
-    
-    def __init__(self, a: Object, b: Object):
-        self.a = a
-        self.b = b
-
-    def __hash__(self) -> int:
-        return hash((self.a, self.b))
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Object) and other.a == self.a and other.b == self.b
 
     def __str__(self) -> str:
-        return f'cons {self.a} {self.b}'
+        return f'{self.code}\n{self.cpp}\n'
 
-class ParseError(Exception):
-    pass
+class EB:
+    code: str
 
-def parse_result(src: str) -> Object:
-    stack: list[Object] = []
-    for c in reversed(src):
-        match c:
-            case '0':
-                stack.append(Nat(0))
-            case '1':
-                match stack.pop():
-                    case Nat(n):
-                        stack.append(Nat(n+1))
-                    case Cons(a, b):
-                        raise ParseError('invalid: (1, (2, a, b))')
-            case '2':
-                b, a = stack.pop(), stack.pop()
-                stack.append(Cons(a, b))
-            case _:
-                if c not in '() ,':
-                    raise ParseError(f'invalid char: {c}')
-    return stack.pop()
+    def __init__(self, code: str) -> None:
+        self.code = code
+
+    def compile(self) -> CPP:
+        with open('out.eb', 'wb') as f:
+            f.write(self.code.encode('utf-8'))
+        res = subprocess.run(['node', f'{HERE}/driver/comp.mjs', 'cpp', 'out.eb'], capture_output = True)
+        return CPP(res.stdout.decode('utf-8'))
+
+    def __str__(self) -> str:
+        return self.code
+
+def format_values(src, zeros: bool = True, ones: int = -1, twos: int = -1) -> str:
+    if zeros:
+        src = re.sub('\\(0\\)', '0', src)
+    
+    while True:
+        ones -= 1
+        next = re.sub('\\(1, (\\d+)\\)', lambda m: str(int(m.group(1)) + 1), src)
+        if next == src or ones == 0:
+            break
+        src = next
+
+    while True:
+        twos -= 1
+        next = re.sub('\\(2, ([^(),]+), ([^(),]+)\\)', lambda m: f'[{m.group(1)}, {m.group(2)}]', src)
+        if next == src or ones == 0:
+            break
+        src = next
+
+    return src
+
+def format_program(text: str, run: bool = True) -> str:
+    a, b, c = text.partition('(')
+    ls = re.split('(?<=\\) )(?=\\()', b + c)
+    text = '\n'.join(reversed(ls))
+    a = a.strip()
+    if a != '':
+        text = f'{a}\n\n' + text
+    if run:
+        text = '#define RUN\n#include "ebrew.c"\n\n' + text
+    return text
 
 def main():
     for arg in sys.argv[1:]:
         for file in glob.glob(arg, recursive = True):
-            res: str = run_file(file).strip('\r\n')
-            try:
-                py: Object = parse_result(res)
-            except Exception as e:
-                print(res)
-                continue
-            print(py)
-    # print(py)
+            with open(file) as f:
+                eb: EB = EB(f.read())
+            cpp: CPP = eb.compile()
+            while True:
+                print(CLEAR + format_program(format_values(cpp.cpp)))
+                # print(CLEAR + format_values(cpp.cpp))
+                if not cpp.step():
+                    break
+                # time.sleep(1)
 
 if __name__ == '__main__':
     main()

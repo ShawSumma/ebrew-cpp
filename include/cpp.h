@@ -1,55 +1,14 @@
 
-#define EQUAL_00 1
-#define EQUAL_11 1
-
-#define ABOVE_00 0
-#define ABOVE_01 0
-#define ABOVE_10 1
-#define ABOVE_11 0
-
-#define COMMA() ,
-    
-#define FST(a,...) a
-
-#define RST(a,...) __VA_ARGS__
-
-#define SND_(a, b, ...) b
-#define SND(...)SND_(__VA_ARGS__,,)
-
-#define T(a, b) a
-#define F(a, b) b
-
-#define IS_PAREN_() IS_PAREN_ 
-#define IS_PAREN(a) SND(COMMA a T, F)
-
-#define IS_SPACE(a) IS_PAREN(a) (F, SND(COMMA a () T, F))
-
 #define DEL(...)
 #define SPLAT(...)__VA_ARGS__
 
 #define CAT(a, b) a ## b
 #define CALL(f, ...) CAT DEL () (M_, f) (__VA_ARGS__)
-#define CALL_SPLAT(f, ...) CAT DEL () (M_, f) __VA_ARGS__
 
-#define EXP(...)__VA_ARGS__
-#define EXP1(...)EXP(EXP(EXP(EXP(EXP(EXP(EXP(EXP(__VA_ARGS__))))))))
-#define EXP2(...)EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(__VA_ARGS__))))))))
-#define EXP3(...)EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(__VA_ARGS__))))))))
-#define EXP4(...)EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(__VA_ARGS__))))))))
-
-#define CONS_(b) b)
-#define CONS(a) (a, CONS_
 #define ROTL(a, ...) (__VA_ARGS__, a)
 #define CCONS__(a, b) (SPLAT a, SPLAT b)
 #define CCONS_(...) (__VA_ARGS__))
 #define CCONS(...) CCONS__ ROTL DEL() ((__VA_ARGS__), CCONS_
-
-#define TYPE_ZERO 0
-#define TYPE_SUCC 1
-#define TYPE_CONS 2
-
-#define BIT_EQUAL(a, b) EQUAL_##a##b
-#define BIT_ABOVE(a, b) ABOVE_##a##b
 
 #define OP_TUPLE_0(v0, ...) v0
 #define OP_TUPLE_1(v0, v1, ...) v1
@@ -87,6 +46,12 @@
 
 #define FINAL(d) d
 
+#define EXP(...)__VA_ARGS__
+#define EXP1(...)EXP(EXP(EXP(EXP(EXP(EXP(EXP(EXP(__VA_ARGS__))))))))
+#define EXP2(...)EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(EXP1(__VA_ARGS__))))))))
+#define EXP3(...)EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(EXP2(__VA_ARGS__))))))))
+#define EXP4(...)EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(EXP3(__VA_ARGS__))))))))
+
 #if !defined(RUN)
-#define RUN() EXP3(FINAL eb_main(_, _))
+#define RUN EXP3(FINAL eb_main(_, _))
 #endif
