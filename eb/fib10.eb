@@ -1,0 +1,38 @@
+
+(if c (t) (f)) ?
+(cons a b) ?
+(car c) ?
+(cdr c) ?
+
+(pred c) ?
+(succ c) ?
+
+(or  a (b)) if a a b
+(and a (b)) if a b a
+(not a    ) if a 0 1
+
+(eq x y)
+if x
+    and y eq pred x pred y
+    not y
+
+(add x y)
+if x
+    add pred x succ y
+    y
+
+(sub x y)
+if x
+    if y
+        sub pred x pred y
+        sub y x
+    y
+
+(fib n)
+if  or  eq 0 n
+        eq 1 n
+    n
+    add fib sub 1 n fib sub 2 n
+
+(main args)
+fib 10

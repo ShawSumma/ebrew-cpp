@@ -2,30 +2,50 @@ import sys
 import os
 import logging
 
-logging.basicConfig(filename="/dev/stdout", level=logging.DEBUG, format="%(message)s")
+logging.basicConfig(stream = sys.stdout, level=logging.DEBUG, format="%(message)s")
 
-dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
+sys.path.append('temper.out/py/std')
 sys.path.append('temper.out/py/temper-core')
 sys.path.append('temper.out/py/eb')
 
-from eb.interp import Env
-from eb.value import string
+from eb import Env, run_todo, string, unstring
 
-def read(name):
-    with open(name) as f:
-        return f.read()
+HERE = os.path.dirname(os.path.realpath(__file__))
+assert os.path.exists(HERE) and HERE != ''
 
-env = Env()
+def read_file(args, k):
+    name = args[0]
+    with open(name, 'rb') as f:
+        text = f.read().decode('utf-8')
+    k(unstring(text))
+    run_todo()
 
-ebfile = read(f"{dir}/eb/eb.eb")
-env.source(ebfile)
-if len(sys.argv) <= 1:
-    lang = 'c'
-else:
-    lang = sys.argv[1]
-if len(sys.argv) <= 2:
-    src = ebfile
-else:
-    src = read(sys.argv[2])
-env.call("main-lang", (string(lang), string(src)))
+def compile(lang: str, text: str) -> str:
+    env = Env()
+
+    chars = []
+
+    def putchar(args, k):
+        chars.append(chr(int(args[0].to_string())))
+        k(args[0])
+    
+    env.add('read-file', read_file)
+    env.add('putchar', putchar)
+
+    with open(f'{HERE}/../eb/eb.eb') as f:
+        env.source(f.read())
+
+    env.call('main-lang', [string(lang), string(text)])
+
+    return ''.join(chars)
+
+def to_cpp(text: str) -> str:
+    return compile('cpp', text)
+
+def main():
+    with open(sys.argv[2]) as f:
+        text = f.read()
+    print(compile(sys.argv[1], text))
+
+if __name__ == '__main__':
+    main()

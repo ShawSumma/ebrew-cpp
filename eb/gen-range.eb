@@ -1,0 +1,111 @@
+
+(if c (t) (f)) ?
+
+(cons a b) ?
+(car p) ?
+(cdr p) ?
+
+(succ c) ?
+(pred c) ?
+
+(char n) ?
+(tostr t) ?
+
+(empty a b) ?
+(token x) ?
+
+(jux a b) ?
+(commajux a b) ?
+
+(or  a (b)) if a a b
+(and a (b)) if a b a
+(not a    ) if a 0 1
+
+(eq x y)
+if x
+    and y eq pred x pred y
+    not y
+
+(add x y)
+if x
+    add pred x succ y
+    y
+
+(sub x y)
+if x
+    if y
+        sub pred x pred y
+        sub y x
+    y
+
+(next-after v n)
+if  n
+    cons v
+         next-after succ v pred n
+    0
+
+(range l h)
+next-after l sub h l
+
+(token-chars x)
+if  x
+    cons char car x
+         token-chars  cdr x
+    0
+
+(word s)
+token token-chars s
+
+(gen_range low high)
+tostr word range low high
+
+(repeat-text times text)
+if  times
+    if pred times
+        commajux
+            text
+            repeat-text pred times text
+        jux text
+            word "}"
+    word "}"
+
+(repeat times n)
+jux word "{"
+    repeat-text times
+        word cons add n '0 0
+
+(fib n)
+if  or  eq 0 n
+        eq 1 n
+    n
+    add fib sub 1 n fib sub 2 n
+
+(map [arg] (func arg) list)
+if  list
+    cons func car list
+         map arg func arg cdr list
+    0
+
+(c-array-body ls)
+if  ls
+    if  cdr ls
+        commajux car ls
+            c-array-body cdr ls
+        jux car ls
+            word "}"
+    word "}"
+
+(c-array ls)
+jux word "{"
+if  cdr ls
+    c-array-body ls
+    jux car ls
+        word "}"
+
+(word-num n)
+word cons add n '0 0
+
+(gen_fib v)
+c-array
+map n word-num fib n
+    range 0 v

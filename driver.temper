@@ -1,0 +1,44 @@
+
+let {...} = import("std/regex");
+
+export class System(
+  public time: fn(): Float64,
+  public argv: Listed<String>,
+  public read: fn(String): String,
+  public exec: fn(List<String>): String,
+) {}
+
+export let parseValues(src: String): String {
+
+}
+
+export let formatValues(src: String): String {
+  var str = rgx"\(0\)".replace(src, fn(match: Match): String { "0" });
+  
+  var done = false;
+  while (!done) {
+    done = true;
+    str = rgx"\(1, (?value=\d+)\)".replace(str, fn(match: Match): String {
+      done = false;
+      (match.groups["value"].value.toInt() + 1).toString() orelse ""
+    });
+  }
+
+  done = false;
+  while (!done) {
+    done = true;
+    str = rgx"\(2, ([^(),]+), ([^(),]+)\)".replace(str, fn(match: Match): String {
+      done = false;
+      (match.groups["value"].value.toInt() + 1).toString() orelse ""
+    });
+  }
+
+  return str;
+}
+
+export let formatProgram(text: String): String {
+  let stack = new ListBuilder<StringBuilder>();
+  text.forEach { (char);;
+    
+  }
+}

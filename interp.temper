@@ -84,7 +84,7 @@ export class Env {
 
   public compExternName(name: String): Define | Bubble {
     var self = this;
-    when (name) {
+    externs[name] orelse when (name) {
       "equal" -> fn(args: Listed<Value>, k: Cont): Void | Bubble {
         if (args[0].asInt() == args[1].asInt()) {
           k(number(1));
@@ -140,9 +140,7 @@ export class Env {
         };
         func.body.run(func.scope, k);
       };
-      else -> do {
-        externs[name]
-      }
+      else -> bubble()
     }
   }
 

@@ -20,7 +20,7 @@ export class Ident(public repr: String) extends Tree {
 
 export class Number(public repr: Int) extends Tree {
   public toString(): String {
-    return "<int: ${repr.toString()}>";
+    return "<int: ${repr}>";
   }
 } 
 
@@ -250,7 +250,6 @@ export class Parser {
             for (var genericIndex = 0; genericIndex < binding.generics.length; genericIndex++) {
               var generic: String = binding.generics[genericIndex]; 
               var bind = readGeneric();
-              // console.log("${generic} => ${bind.toString()}");
               genericLayer.add(new GenericBinding(generic, bind));
               defLayer.add(bind);
               impls.add(generic);
@@ -331,7 +330,6 @@ export class Parser {
       if (canFind(type.known, arg.name) || canFind(known.toList(), arg.name)) {
         var generic = findGenericOr(arg.name, new Binding("?", [], [], [], false));
         defLayer.add(generic);
-        // console.log("arg: ${arg.name}; geneirc: ${generic.name}")
         names.add(new Ident(generic.name)) orelse do {};
       } else {
         defLayer.add(arg);

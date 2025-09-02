@@ -1,0 +1,22 @@
+
+(if c (t) (f)) ?
+(cons a b) ?
+(car p) ?
+(cdr p) ?
+(pred c) ?
+
+(range n)
+if n
+    cons n range pred n
+    n
+
+(reverse-with l r)
+if  l
+    reverse-with cdr l cons car l r
+    r
+
+(reverse l)
+reverse-with l 0
+
+(main args)
+reverse range 10

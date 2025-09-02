@@ -1248,7 +1248,7 @@ if  ir-is-number ir
     put-ir-cpp-nat ir-number-value ir
 if  ir-is-string ir
     do  for c ir-string-value ir
-        do  put-str "(TYPE_CONS, "
+        do  put-str "(2, "
         do  put-ir-cpp-nat c
         do  put-str ", "
             0

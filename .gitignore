@@ -3,6 +3,8 @@ __pycache__
 .mypy_cache
 .vscode
 *.c
+*.h
+*.inc
 *.cpuprofile
 *.dsym
 *.exe
@@ -21,4 +23,5 @@ package-lock.json
 package.json
 temper.keep
 temper.out
-ebrew.c
+!include/*.h
+!main.c
