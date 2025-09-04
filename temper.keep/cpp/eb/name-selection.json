@@ -1,7 +1,0 @@
-{
-    "about": "Backend names selected by user via the temper CLI. This file should be committed.",
-    "toolchain-version": "temper-0.4.1-dev+155-gb6a31eaf5-dirty",
-    "library-name": "eb",
-    "backend-id": "cpp",
-    "selections": []
-}

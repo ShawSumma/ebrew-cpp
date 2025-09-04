@@ -11,7 +11,7 @@
 (char n) ?
 (tostr t) ?
 
-(empty a b) ?
+(empty) ?
 (token x) ?
 
 (jux a b) ?
@@ -22,7 +22,7 @@
 (not a    ) if a 0 1
 
 (eq x y)
-if x
+if  x
     and y eq pred x pred y
     not y
 
@@ -74,12 +74,6 @@ jux word "{"
     repeat-text times
         word cons add n '0 0
 
-(fib n)
-if  or  eq 0 n
-        eq 1 n
-    n
-    add fib sub 1 n fib sub 2 n
-
 (map [arg] (func arg) list)
 if  list
     cons func car list
@@ -105,7 +99,22 @@ if  cdr ls
 (word-num n)
 word cons add n '0 0
 
+(fib n)
+if  or  eq 0 n
+        eq 1 n
+    n
+    add fib sub 1 n fib sub 2 n
+
 (gen_fib v)
 c-array
-map n word-num fib n
+map x word-num fib x
     range 0 v
+
+(hello)
+tostr word "hello"
+
+(do_add x y)
+word-num add x y
+
+(char_range low n)
+tostr word next-after low n

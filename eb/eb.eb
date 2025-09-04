@@ -1290,8 +1290,6 @@ if  str-eq lang "cpp"
             for el ir
                 put-ir-cpp el
         do  put-line
-        do  put-str "RUN"
-        do  put-line
             0
         put-error info
 do  put-str "unknown target: "

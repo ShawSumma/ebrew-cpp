@@ -5,7 +5,7 @@ import string
 os.chdir(os.path.dirname(__file__))
 
 with open('char-table.h', 'w', encoding = 'utf-8') as f:
-    for i in string.ascii_letters + string.digits + "=()[]{}<>+-*/%^&_=:./;!~`#,":
+    for i in sorted(string.ascii_letters + string.digits + "=()[]{}<>+-*/%^&_=:./;!~`#,", key=ord):
         ones = '1' * ord(i)
         f.write(f'#define len_to_char_{ones}0 {i}\n')
 

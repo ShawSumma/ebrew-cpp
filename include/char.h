@@ -1,7 +1,5 @@
 
 
-#define RUN
-
 #include "char-table.h"
 
 // char
@@ -48,7 +46,6 @@
 
 #include "int-table.h"
 
-#define RUN
 #define INVOKE_0(f) EXP5(OP_TUPLE_TAIL SPLAT eb_ ## f(_))
 #define INVOKE_1(f, n) EXP5(OP_TUPLE_TAIL SPLAT eb_ ## f(_, int_ ## n))
 #define INVOKE_2(f, n, m) EXP5(OP_TUPLE_TAIL SPLAT eb_ ## f(_, int_ ## n, int_ ## m))
