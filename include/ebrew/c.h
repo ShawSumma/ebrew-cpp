@@ -4,23 +4,7 @@
 #include <stdlib.h>
 
 #if EB_DEBUG
-#define EB_ENTER() ebz_enter(__FUNCTION__)
-#define EB_EXIT() ebz_exit(__FUNCTION__)
-
 size_t ebz_cur_depth = 0;
-size_t ebz_max_depth = 0;
-
-static inline void ebz_enter(const char *name) {
-  ebz_cur_depth += 1;
-  if (ebz_cur_depth > ebz_max_depth) {
-    ebz_max_depth = ebz_cur_depth;
-  }
-}
-
-static inline void ebz_exit(const char *name) { ebz_cur_depth -= 1; }
-#else
-#define EB_ENTER() ((void)0)
-#define EB_EXIT() ((void)0)
 #endif
 
 struct ebz_cons_t;
@@ -29,7 +13,9 @@ struct ebz_cons_t {
   size_t car;
   size_t cdr;
 };
+size_t ebz_alloc_total = 0;
 static inline size_t ebz_cons(size_t car, size_t cdr) {
+  ebz_alloc_total += 1;
   ebz_cons_t *ret = malloc(sizeof(ebz_cons_t));
   ret->car = car;
   ret->cdr = cdr;
@@ -115,6 +101,7 @@ static inline size_t eb_read_file(size_t a1, size_t f) {
 extern size_t eb_main(size_t closure, size_t args);
 
 int main(int argc, char **argv) {
+  printf("ENTER\n");
   size_t a = 0;
   while (argc > 1) {
     char *c = argv[--argc];
@@ -125,7 +112,7 @@ int main(int argc, char **argv) {
   int got = (int)((size_t(*)(size_t, size_t))eb_main)(0, a);
 #if EB_DEBUG
   fprintf(stderr, "// %zu pairs\n", ebz_alloc_total);
-  fprintf(stderr, "// %zu depth\n", ebz_max_depth);
 #endif
+  printf("EXIT\n");
   return got;
 }

@@ -1,8 +1,0 @@
-
-(cons x y) ?
-(car c) ?
-(cdr c) ?
-(if c (t) (f)) ?
-
-(main args)
-cons 0 cons 1 cons 2 0

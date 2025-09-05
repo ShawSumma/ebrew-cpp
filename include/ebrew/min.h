@@ -1,7 +1,9 @@
 
-typedef __typeof__(sizeof(0)) size_t;
-typedef struct {
-} FILE;
+// typedef __typeof__(sizeof(0)) size_t;
+// typedef struct {} FILE;
+
+typedef __SIZE_TYPE__ size_t;
+typedef void FILE;
 
 FILE *fopen(const char *name, const char *mode);
 void fclose(FILE *file);

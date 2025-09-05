@@ -1,7 +1,0 @@
-
-(g a b) a
-
-(f x) g x x
-
-(main args)
-f 4984

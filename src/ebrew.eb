@@ -1269,7 +1269,7 @@ if  str-eq lang "c"
     parse-toplevel str-to-state str binding-table
         do  put-str "#include "
         do  putchar 34
-        do  put-str "include/ebrew.h"
+        do  put-str "include/ebrew/c.h"
         do  putchar 34
         do  put-line
         for node values
@@ -1278,11 +1278,24 @@ if  str-eq lang "c"
             for el ir
                 put-ir-c el
         put-error info
-if  str-eq lang "cpp"
+if  str-eq lang "min"
     parse-toplevel str-to-state str binding-table
         do  put-str "#include "
         do  putchar 34
-        do  put-str "include/cpp.h"
+        do  put-str "include/ebrew/min.h"
+        do  putchar 34
+        do  put-line
+        for node values
+            let ir compile-ir node 0 0
+            do  put-ir-c-decl car reverse ir
+            for el ir
+                put-ir-c el
+        put-error info
+if  str-eq lang "inc"
+    parse-toplevel str-to-state str binding-table
+        do  put-str "#include "
+        do  putchar 34
+        do  put-str "include/ebrew/inc.h"
         do  putchar 34
         do  put-line
         do  for node values

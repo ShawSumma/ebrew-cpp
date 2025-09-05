@@ -1,7 +1,0 @@
-{
-    "about": "Backend names selected by user via the temper CLI. This file should be committed.",
-    "toolchain-version": "temper-v0.5.0",
-    "library-name": "std",
-    "backend-id": "js",
-    "selections": []
-}
